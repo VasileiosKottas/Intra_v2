@@ -17,16 +17,19 @@ import threading
 import time
 import schedule
 from sqlalchemy import or_, and_
+from flask_cors import CORS
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sales_dashboard.db'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////opt/render/project/src/instance/sales_dashboard.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+JOTFORM_API_KEY = os.getenv('JOTFORM_API_KEY', 'b78b083ca0a78392acf8de69666a3577')  # replace the hardcoded key
+origins = os.getenv('CORS_ORIGINS', '*')
+CORS(app, resources={r"/api/*": {"origins": [o.strip() for o in origins.split(',') if o.strip()]}})
 
 db = SQLAlchemy(app)
 
-# HARDCODED API KEY - NO MANUAL INPUT NEEDED
-JOTFORM_API_KEY = "b78b083ca0a78392acf8de69666a3577"
+
 
 # VALID BUSINESS TYPES - Define globally for consistency
 VALID_BUSINESS_TYPES = [
@@ -887,7 +890,9 @@ def get_user_cases():
                 'data_type': 'Paid'
             } for p in cases
         ])
-
+@app.route('/healthz')
+def health():
+    return {'ok': True}, 200
 @app.route('/api/team-data')
 @login_required
 def get_team_data():
