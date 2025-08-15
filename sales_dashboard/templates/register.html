@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Sales Team Rankings</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+            padding: 1rem 2rem;
+            text-align: center;
+        }
+        
+        .header h1 {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.5rem;
+        }
+        
+        .header h1::before {
+            content: "📊";
+            font-size: 1.2em;
+        }
+        
+        .main-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+        
+        .register-container {
+            display: flex;
+            gap: 2rem;
+            width: 100%;
+            max-width: 900px;
+        }
+        
+        .register-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            flex: 1;
+        }
+        
+        .advisors-card {
+            background: #e8f6f3;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            flex: 1;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .register-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            border-radius: 50%;
+            margin: 0 auto 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+        
+        .register-title {
+            font-size: 1.8rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            text-align: center;
+        }
+        
+        .register-subtitle {
+            color: #7f8c8d;
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        
+        .form-input, .form-select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #ecf0f1;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+            background: #f8f9fa;
+        }
+        
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: #2ecc71;
+            background: white;
+        }
+        
+        .form-warning {
+            background: #fff3cd;
+            color: #856404;
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            border-left: 4px solid #ffc107;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .form-warning::before {
+            content: "⚠️";
+        }
+        
+        .register-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 1.5rem;
+        }
+        
+        .register-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(46, 204, 113, 0.4);
+        }
+        
+        .register-btn::before {
+            content: "👤";
+            margin-right: 0.5rem;
+        }
+        
+        .advisors-title {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .advisors-title::before {
+            content: "ℹ️";
+        }
+        
+        .advisors-subtitle {
+            color: #7f8c8d;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .advisor-item {
+            background: white;
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            border-left: 4px solid #3498db;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+        
+        .advisor-name {
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        
+        .advisor-cases {
+            color: #7f8c8d;
+            font-size: 0.8rem;
+        }
+        
+        .important-notice {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .important-notice h4 {
+            color: #856404;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .important-notice h4::before {
+            content: "⚠️";
+        }
+        
+        .important-notice p {
+            color: #856404;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .divider {
+            text-align: center;
+            margin: 1.5rem 0;
+            color: #bdc3c7;
+            font-size: 0.9rem;
+        }
+        
+        .login-link {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            color: #3498db;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: background-color 0.3s;
+            text-align: center;
+            width: 100%;
+        }
+        
+        .login-link:hover {
+            background: #f8f9fa;
+        }
+        
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            border-left: 4px solid #c62828;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 1rem;
+            }
+            
+            .register-container {
+                flex-direction: column;
+            }
+            
+            .register-card, .advisors-card {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>The House of Windsor</h1>
+    </div>
+
+    <div class="main-container">
+        <div class="register-container">
+            <div class="register-card">
+                <div class="register-icon">👤</div>
+                <h2 class="register-title">Create Account</h2>
+                <p class="register-subtitle">Join the sales team dashboard</p>
+
+                {% if error %}
+                <div class="error-message">
+                    {{ error }}
+                </div>
+                {% endif %}
+
+                <div class="form-warning">
+                    Must match your name in the sales system exactly
+                </div>
+
+                <form method="POST">
+                    <div class="form-group">
+                        <label class="form-label" for="full_name">Full Name <span style="color: #e74c3c;">*</span></label>
+                        <select id="full_name" name="full_name" class="form-select" required>
+                            <option value="">Select your name...</option>
+                            {% for advisor in available_advisors %}
+                            <option value="{{ advisor }}">{{ advisor }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="username">Username</label>
+                        <input type="text" id="username" name="username" class="form-input" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="email">Email</label>
+                        <input type="email" id="email" name="email" class="form-input" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="password">Password</label>
+                        <input type="password" id="password" name="password" class="form-input" required>
+                    </div>
+
+                    <button type="submit" class="register-btn">Create Account</button>
+                </form>
+
+                <div class="important-notice">
+                    <h4>Important</h4>
+                    <p>Your "Full Name" must match EXACTLY how your name appears in the JotForm sales data. This enables automatic matching to your sales performance.</p>
+                </div>
+
+                <div class="divider">Already have an account?</div>
+                <a href="/login" class="login-link">Sign In</a>
+            </div>
+
+            <div class="advisors-card">
+                <h3 class="advisors-title">Available Advisors</h3>
+                <p class="advisors-subtitle">Use one of these exact names for automatic matching:</p>
+
+                <div class="advisor-item">
+                    <span class="advisor-name">Challenger Maya</span>
+                    <span class="advisor-cases">(1 sales)</span>
+                </div>
+
+                <div class="advisor-item">
+                    <span class="advisor-name">Daniel Jones</span>
+                    <span class="advisor-cases">(68 sales)</span>
+                </div>
+
+                <div class="advisor-item">
+                    <span class="advisor-name">Drew Gibson</span>
+                    <span class="advisor-cases">(76 sales)</span>
+                </div>
+
+                <div class="advisor-item">
+                    <span class="advisor-name">Elliot Cotterell</span>
+                    <span class="advisor-cases">(158 sales)</span>
+                </div>
+
+                <div class="advisor-item">
+                    <span class="advisor-name">Jamie Cope</span>
+                    <span class="advisor-cases">(17 sales)</span>
+                </div>
+
+                <div class="advisor-item">
+                    <span class="advisor-name">Lottie Brown</span>
+                    <span class="advisor-cases">(3 sales)</span>
+                </div>
+
+                <div class="advisor-item">
+                    <span class="advisor-name">Martyn Barberry</span>
+                    <span class="advisor-cases">(1 sales)</span>
+                </div>
+
+                <div class="advisor-item">
+                    <span class="advisor-name">Michael Olivieri</span>
+                    <span class="advisor-cases">(100 sales)</span>
+                </div>
+
+                <div class="advisor-item">
+                    <span class="advisor-name">Nicholas (referral)</span>
+                    <span class="advisor-cases">(2 sales)</span>
+                </div>
+
+                <div class="advisor-item">
+                    <span class="advisor-name">Oliver Cotterell</span>
+                    <span class="advisor-cases">(55 sales)</span>
+                </div>
+
+                <div class="advisor-item">
+                    <span class="advisor-name">Rachel Ashworth</span>
+                    <span class="advisor-cases">(48 sales)</span>
+                </div>
+
+                <div class="advisor-item">
+                    <span class="advisor-name">Steven Horn</span>
+                    <span class="advisor-cases">(29 sales)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

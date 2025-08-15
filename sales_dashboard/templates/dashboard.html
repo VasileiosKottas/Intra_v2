@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Sales Team Rankings</title>
+    
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main-styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/metrics.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal.css') }}">
+</head>
+<body>
+    <div class="header">
+        <h1>
+            <img src="{{ url_for('static', filename='images/White_and_teal_on_blue_2.png') }}"
+                alt="The House of Windsor logo" class="logo">
+            WinSuite
+        </h1>
+        <div class="user-info">
+            <span>Welcome, {{ user.full_name }}!</span>
+            <a href="/logout" class="logout-btn">Logout</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="dashboard-header">
+            <h2 class="dashboard-title">Your Performance Dashboard</h2>
+            <p class="dashboard-subtitle">Track your sales performance and team ranking in real-time</p>
+            
+            <div class="period-controls">
+                <span>Period:</span>
+                <button class="period-btn active" data-period="month">Month to Date</button>
+                <button class="period-btn" data-period="quarter">Last Quarter</button>
+                <button class="period-btn" data-period="year">Year to Date</button>
+                <button class="period-btn" data-period="custom">Custom Range</button>
+            </div>
+
+            <!-- Custom Date Picker Modal -->
+            <div id="customDateModal" class="date-modal">
+                <div class="date-modal-content">
+                    <div class="date-modal-header">
+                        <h3>Select Custom Date Range</h3>
+                        <button class="close-date-modal" onclick="closeDateModal()">&times;</button>
+                    </div>
+                    <div class="date-inputs">
+                        <div class="date-input-group">
+                            <label for="startDate">Start Date:</label>
+                            <input type="date" id="startDate" class="date-input">
+                        </div>
+                        <div class="date-input-group">
+                            <label for="endDate">End Date:</label>
+                            <input type="date" id="endDate" class="date-input">
+                        </div>
+                    </div>
+                    <div class="date-modal-buttons">
+                        <button class="btn-cancel" onclick="closeDateModal()">Cancel</button>
+                        <button class="btn-apply" onclick="applyCustomDates()">Apply</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-card proc">
+                <div class="metric-header">
+                    <span class="metric-icon">📄</span>
+                    <span>Your Total Submitted</span>
+                </div>
+                <div class="metric-value" id="total-submitted">£0.00</div>
+                <div class="metric-detail">Your Proc: £<span id="your-proc">0.00</span></div>
+                <div class="metric-detail">Your Fee: £<span id="your-fee">0.00</span></div>
+                <div class="metric-value" style="color: var(--card-color); margin-top: 1rem; font-size: 1.5rem;">
+                    £<span id="combined-total">0.00</span>
+                </div>
+                <div class="metric-detail">Your Combined Total</div>
+            </div>
+
+            <div class="metric-card paid">
+                <div class="metric-header">
+                    <span class="metric-icon">💷</span>
+                    <span>Your Total Paid</span>
+                </div>
+                <div class="metric-value" id="total-paid">£0.00</div>
+                <div class="metric-detail">From Payment Form</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="payment-progress" style="width: 0%"></div>
+                </div>
+                <div class="metric-detail"><span id="payment-percentage">0</span>% of your submitted amount</div>
+            </div>
+
+            <div class="metric-card applications">
+                <div class="metric-header">
+                    <span class="metric-icon">📋</span>
+                    <span>Your Applications</span>
+                </div>
+                <div class="metric-value" id="total-applications">0</div>
+                <div class="metric-detail" id="applications-breakdown">
+                    Residential, Personal Insurance, Commercial
+                </div>
+                <div class="metric-detail">Your Average per Application: £<span id="avg-per-application">0.00</span></div>
+            </div>
+
+            <div class="metric-card referrals">
+                <div class="metric-header">
+                    <span class="metric-icon">🔄</span>
+                    <span>Referrals</span>
+                </div>
+                <div class="metric-value" id="referrals-made">0</div>
+                <div class="metric-detail">Referrals you've made</div>
+                <div style="margin-top: 1rem;">
+                    <div style="font-weight: 600; color: var(--card-color);">Made: <span id="referrals-made-count">0</span></div>
+                    <div style="color: #7f8c8d;">Received: <span id="referrals-received-count">0</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-grid">
+            <div class="chart-section">
+                <div class="chart-header">
+                    <div class="chart-title">📈 Your Performance Timeline</div>
+                    <div class="chart-controls">
+                        <button class="chart-btn active" data-type="submitted">Total Submitted</button>
+                        <button class="chart-btn" data-type="paid">Total Paid</button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="performance-chart"></canvas>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 1rem; font-size: 0.9rem; color: #7f8c8d;">
+                    <div>Total Amount: £<span id="chart-total">0.00</span></div>
+                    <div>Best Day: £<span id="chart-best">0.00</span></div>
+                </div>
+            </div>
+
+            <div class="team-target">
+                                <!-- Team Monthly Goal Section -->
+                    <h3 id="team-target-title">🎯 Team Monthly Goal</h3>
+                    <div class="target-progress" style="display:flex; align-items:center; gap:10px;">
+                    <div class="progress-bar" style="flex:1;">
+                        <div class="progress-fill" id="team-progress-bar" style="width: 0%"></div>
+                    </div>
+                    <div class="target-percentage" id="team-progress"
+                        style="min-width:3.5ch; text-align:right; font-weight:600;">0%</div>
+                    </div>
+                <div class="target-details">
+                    <div class="target-row">
+                        <span>🎯 Start:</span>
+                        <span>£0</span>
+                    </div>
+                    <div class="target-row">
+                        <span>📊 Team Monthly Goal:</span>
+                        <span><strong>£<span id="team-goal">50,000.00</span></strong></span>
+                    </div>
+                    <div class="target-row">
+                        <span>💰 Team Total This Month:</span>
+                        <span><strong>£<span id="team-submitted">16,306.48</span></strong></span>
+                    </div>
+                    <div class="target-row">
+                        <span>💷 Team Remaining:</span>
+                        <span>£<span id="team-remaining">33,693.52</span></span>
+                    </div>
+                    <div class="target-row">
+                        <span>📅 Days Left in Month:</span>
+                        <span><span id="days-left">18</span> days</span>
+                    </div>
+
+                </div>
+                <!-- User Yearly Goal Section -->
+                <div class="user-goal-section">
+                    <h4 style="color: #667eea; margin-top: 1.5rem; font-size: 1.1rem; font-weight: 600;">👤 Your Yearly Goal Progress</h4>
+                    <div class="goal-progress" style="margin-bottom:1.2rem; display:flex; align-items:center; gap:10px;">
+                        <div class="progress-bar" style="flex:1;">
+                            <div class="progress-fill" id="user-yearly-progress-bar" style="width:0%"></div>
+                        </div>
+                        <div class="goal-percentage" id="user-yearly-progress"
+                            style="min-width:3.5ch; text-align:right; font-weight:600;">0%</div>
+                    </div>
+                    <div class="goal-details" style="margin-bottom: 2rem;">
+                        <div class="goal-row">
+                            <span>🎯 Your Yearly Goal:</span>
+                            <span><strong>£<span id="user-yearly-goal">0.00</span></strong></span>
+                        </div>
+                        <div class="goal-row">
+                            <span>💰 Your Total This Year:</span>
+                            <span><strong>£<span id="user-yearly-submitted">0.00</span></strong></span>
+                        </div>
+                        <div class="goal-row">
+                            <span>💷 Remaining:</span>
+                            <span>£<span id="user-yearly-remaining">0.00</span></span>
+                        </div>
+                        <div class="goal-row">
+                            <span>📅 Days Left in Year:</span>
+                            <span><span id="user-days-left-year">365</span> days</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Divider -->
+
+
+            </div>
+        </div>
+
+        <div class="leaderboard-section">
+            <div class="leaderboard-header">
+                <div class="leaderboard-title">👥 Team Leaderboard (2 members)</div>
+                <button class="refresh-btn" onclick="refreshLeaderboard()">🔄 Refresh</button>
+            </div>
+
+            <table class="leaderboard-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Team Member</th>
+                        <th>Total Submitted</th>
+                        <th>Total Paid</th>
+                        <th>Avg Case Size</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard-body">
+                    <tr>
+                        <td><span class="rank-badge rank-1">#1</span></td>
+                        <td><strong>Steven Horn</strong> <span style="color: #f39c12;">10 cases</span></td>
+                        <td><strong>£10,657.48</strong></td>
+                        <td style="color: #2ecc71;"><strong>£72,043.10</strong></td>
+                        <td>£1,065.75</td>
+                    </tr>
+                    <tr style="background: linear-gradient(135deg, #fff9e6 0%, #fff3d6 100%); border-left: 4px solid #f39c12;">
+                        <td><span class="rank-badge rank-2">#2</span></td>
+                        <td>
+                            <strong>Jamie Cope</strong> 
+                            <span class="status-badge status-submitted" style="margin-left: 0.5rem;">You</span>
+                            <span style="color: #f39c12; margin-left: 0.5rem;">4 cases</span>
+                        </td>
+                        <td><strong>£5,649.00</strong></td>
+                        <td style="color: #2ecc71;"><strong>£11,892.51</strong></td>
+                        <td>£1,412.25</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="cases-section">
+            <div class="cases-header">
+                <div class="cases-title">📋 Your Cases <span class="status-badge status-submitted">17</span></div>
+                <div class="cases-filters">
+                    <button class="refresh-btn" onclick="refreshCases()">🔄 Refresh</button>
+                    <select class="filter-select" id="case-data-type">
+                        <option value="submitted">Fee Submitted</option>
+                        <option value="paid">Paid</option>
+                    </select>
+                    <select class="filter-select" id="case-type-filter">
+                        <option value="all">All Case Types</option>
+                        <option value="Residential Mortgage (Including BTL)">Residential Mortgage (Including BTL)</option>
+                        <option value="Personal Insurance (Including GI)">Personal Insurance (Including GI)</option>
+                        <option value="Product Transfer">Product Transfer</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Scrollable Table Container -->
+            <div class="cases-table-container">
+                <table class="cases-table">
+                    <thead>
+                        <tr>
+                            <th>Customer Name</th>
+                            <th>Case Type</th>
+                            <th>Fee Submitted</th>
+                            <th>Payment Status</th>
+                            <th>Date</th>
+                            <th>Data Type</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cases-body">
+                        <!-- Sample data to show styling -->
+                        <tr>
+                            <td>Michael Smith & Sarah Johnson</td>
+                            <td>
+                                <span>Residential Mortgage (Including BTL)</span>
+                            </td>
+                            <td style="font-weight: 600; color: #2c3e50;">£2,850.00</td>
+                            <td><span class="status-badge status-pending">Pending</span></td>
+                            <td style="font-weight: 500;">15 Aug</td>
+                            <td><span class="status-badge status-submitted">Submitted</span></td>
+                        </tr>
+                        <tr>
+                            <td>David Wilson</td>
+                            <td>
+                                <span>Personal Insurance (Including GI)</span>
+                            </td>
+                            <td style="font-weight: 600; color: #2c3e50;">£1,250.00</td>
+                            <td><span class="status-badge status-paid">Paid</span></td>
+                            <td style="font-weight: 500;">12 Aug</td>
+                            <td><span class="status-badge status-submitted">Submitted</span></td>
+                        </tr>
+                        <tr>
+                            <td>Emma Thompson & James Brown</td>
+                            <td>
+                                <span>Product Transfer</span>
+                            </td>
+                            <td style="font-weight: 600; color: #2c3e50;">£3,200.00</td>
+                            <td><span class="status-badge status-pending">Pending</span></td>
+                            <td style="font-weight: 500;">10 Aug</td>
+                            <td><span class="status-badge status-submitted">Submitted</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Global variables
+        let currentPeriod = 'month';
+        let currentChartType = 'submitted';
+        let performanceChart = null;
+        let customStartDate = null;
+        let customEndDate = null;
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Ensure modal starts hidden
+            const modal = document.getElementById('customDateModal');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.remove('show');
+            }
+            
+            setupEventListeners();
+            loadDashboardData();
+            loadUserGoalData();  // Add this new function call
+            loadTeamData();
+            loadUserCases();
+            initializeChart();
+            
+            // Auto-refresh every minute
+            setInterval(() => {
+                loadDashboardData();
+                loadUserGoalData();  // Add this to auto-refresh
+                loadTeamData();
+                loadUserCases();
+                updateChart();
+            }, 60000);
+        });
+
+        function setupEventListeners() {
+            // Period buttons
+            document.querySelectorAll('.period-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    if (this.dataset.period === 'custom') {
+                        openDateModal();
+                    } else {
+                        document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+                        this.classList.add('active');
+                        
+                        const customBtn = document.querySelector('[data-period="custom"]');
+                        const existingRange = customBtn.querySelector('.custom-date-range');
+                        if (existingRange) {
+                            existingRange.remove();
+                        }
+                        
+                        currentPeriod = this.dataset.period;
+                        loadDashboardData();
+                        loadTeamData();
+                        loadUserCases();
+                        updateChart();
+                    }
+                });
+            });
+
+            // Chart type buttons
+            document.querySelectorAll('.chart-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentChartType = this.dataset.type;
+                    updateChart();
+                });
+            });
+
+            // Cases filters
+            document.getElementById('case-data-type').addEventListener('change', loadUserCases);
+            document.getElementById('case-type-filter').addEventListener('change', loadUserCases);
+            
+            // Set default date values
+            const today = new Date();
+            const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            
+            document.getElementById('startDate').value = firstDayOfMonth.toISOString().split('T')[0];
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+        }
+
+        // Date modal functions
+        function openDateModal() {
+            const modal = document.getElementById('customDateModal');
+            modal.style.display = 'block';
+            modal.classList.add('show');
+            
+            setTimeout(() => {
+                document.getElementById('startDate').focus();
+            }, 100);
+        }
+
+        function closeDateModal() {
+            const modal = document.getElementById('customDateModal');
+            modal.style.display = 'none';
+            modal.classList.remove('show');
+            
+            if (currentPeriod !== 'custom') {
+                document.querySelector('[data-period="custom"]').classList.remove('active');
+                const currentBtn = document.querySelector(`[data-period="${currentPeriod}"]`);
+                if (currentBtn) {
+                    currentBtn.classList.add('active');
+                }
+            }
+        }
+
+        function applyCustomDates() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates');
+                return;
+            }
+            
+            if (new Date(startDate) > new Date(endDate)) {
+                alert('Start date must be before end date');
+                return;
+            }
+            
+            customStartDate = startDate;
+            customEndDate = endDate;
+            currentPeriod = 'custom';
+            
+            document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+            const customBtn = document.querySelector('[data-period="custom"]');
+            customBtn.classList.add('active');
+            
+            const startDateObj = new Date(startDate);
+            const endDateObj = new Date(endDate);
+            const startFormatted = startDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+            const endFormatted = endDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+            
+            let existingRange = customBtn.querySelector('.custom-date-range');
+            if (!existingRange) {
+                existingRange = document.createElement('span');
+                existingRange.className = 'custom-date-range';
+                customBtn.appendChild(existingRange);
+            }
+            existingRange.textContent = ` (${startFormatted} - ${endFormatted})`;
+            
+            closeDateModal();
+            
+            loadDashboardData();
+            loadTeamData();
+            loadUserCases();
+            updateChart();
+        }
+
+        // Close modal when clicking outside or pressing Escape
+        window.onclick = function(event) {
+            const modal = document.getElementById('customDateModal');
+            if (event.target === modal) {
+                closeDateModal();
+            }
+        }
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const modal = document.getElementById('customDateModal');
+                if (modal && modal.style.display === 'block') {
+                    closeDateModal();
+                }
+            }
+        });
+
+        // API Functions
+        async function loadDashboardData() {
+            try {
+                let url = `/api/dashboard-data?period=${currentPeriod}`;
+                if (currentPeriod === 'custom' && customStartDate && customEndDate) {
+                    url += `&start=${customStartDate}&end=${customEndDate}`;
+                }
+                
+                const response = await fetch(url, { cache: 'no-store' });
+                const data = await response.json();
+                
+                document.getElementById('total-submitted').textContent = `£${data.total_submitted.toFixed(2)}`;
+                document.getElementById('your-proc').textContent = data.total_submitted.toFixed(2);
+                document.getElementById('your-fee').textContent = data.total_fee.toFixed(2);
+                document.getElementById('combined-total').textContent = data.combined_total.toFixed(2);
+                document.getElementById('total-paid').textContent = `£${data.total_paid.toFixed(2)}`;
+                document.getElementById('payment-percentage').textContent = Math.round(data.payment_percentage);
+                document.getElementById('payment-progress').style.width = `${Math.min(data.payment_percentage, 100)}%`;
+
+                const totalApps = Object.values(data.applications).reduce((sum, count) => sum + count, 0);
+                document.getElementById('total-applications').textContent = totalApps;
+                document.getElementById('avg-per-application').textContent = totalApps > 0 ? (data.combined_total / totalApps).toFixed(2) : '0.00';
+
+                document.getElementById('referrals-made').textContent = data.referrals_made;
+                document.getElementById('referrals-made-count').textContent = data.referrals_made;
+                document.getElementById('referrals-received-count').textContent = data.referrals_received;
+
+                const breakdown = Object.entries(data.applications)
+                    .map(([type, count]) => `${type}: ${count}`)
+                    .join(', ');
+                document.getElementById('applications-breakdown').textContent = breakdown || 'No applications';
+
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+            }
+        }
+
+        async function loadUserGoalData() {
+            try {
+                // Load user's yearly goal progress
+                const response = await fetch('/api/user-goal-data', { cache: 'no-store' });
+                const data = await response.json();
+                
+                // Update user yearly goal display
+                document.getElementById('user-yearly-progress').textContent = `${Math.round(data.user_yearly_progress)}%`;
+                document.getElementById('user-yearly-progress-bar').style.width = `${Math.min(data.user_yearly_progress, 100)}%`;
+                document.getElementById('user-yearly-goal').textContent = data.user_yearly_goal.toFixed(2);
+                document.getElementById('user-yearly-submitted').textContent = data.user_yearly_total.toFixed(2);
+                document.getElementById('user-yearly-remaining').textContent = data.user_yearly_remaining.toFixed(2);
+                document.getElementById('user-days-left-year').textContent = data.days_left_year;
+                
+                // Change color based on yearly progress
+                const progressElement = document.getElementById('user-yearly-progress');
+                const progressBar = document.getElementById('user-yearly-progress-bar');
+                
+                if (data.user_yearly_progress >= 100) {
+                    progressElement.style.color = '#2ecc71';  // Green for achieved
+                    progressBar.style.setProperty('--card-color', '#2ecc71');
+                    progressBar.style.setProperty('--card-color-light', '#55efc4');
+                } else if (data.user_yearly_progress >= 75) {
+                    progressElement.style.color = '#f39c12';  // Orange for close
+                    progressBar.style.setProperty('--card-color', '#f39c12');
+                    progressBar.style.setProperty('--card-color-light', '#fdcb6e');
+                } else {
+                    progressElement.style.color = '#667eea';  // Blue for in progress
+                    progressBar.style.setProperty('--card-color', '#667eea');
+                    progressBar.style.setProperty('--card-color-light', '#a29bfe');
+                }
+
+            } catch (error) {
+                console.error('Error loading user goal data:', error);
+            }
+        }
+
+        async function loadTeamData() {
+            try {
+                let url = `/api/team-data?period=${currentPeriod}`;
+                if (currentPeriod === 'custom' && customStartDate && customEndDate) {
+                    url += `&start=${customStartDate}&end=${customEndDate}`;
+                }
+                
+                const response = await fetch(url, { cache: 'no-store' });
+                const data = await response.json();
+                
+                if (data.no_team) {
+                    document.getElementById('team-progress').textContent = '0%';
+                    document.getElementById('team-progress-bar').style.width = '0%';
+                    document.getElementById('team-goal').textContent = '0.00';
+                    document.getElementById('team-submitted').textContent = '0.00';
+                    document.getElementById('team-remaining').textContent = '0.00';
+                    document.getElementById('days-left').textContent = '0 days';
+
+                    const leaderboardBody = document.getElementById('leaderboard-body');
+                    leaderboardBody.innerHTML = `
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                                <div style="font-size: 3rem; margin-bottom: 1rem;">👥</div>
+                                <p>You are not assigned to a team yet. Contact your administrator to be assigned to a team.</p>
+                            </td>
+                        </tr>
+                    `;
+
+                    document.querySelector('.leaderboard-title').textContent = `No Team Assigned`;
+                    document.querySelector('.team-target h3').textContent = 'No Team Target';
+                    return;
+                }
+
+                document.getElementById('team-progress').textContent = `${Math.round(data.team_progress)}%`;
+                document.getElementById('team-progress-bar').style.width = `${Math.min(data.team_progress, 100)}%`;
+                document.getElementById('team-goal').textContent = data.team_monthly_goal.toFixed(2);
+                document.getElementById('team-submitted').textContent = data.team_monthly_total.toFixed(2);
+                document.getElementById('team-remaining').textContent = (data.team_monthly_goal - data.team_monthly_total).toFixed(2);
+                document.getElementById('days-left').textContent = `${data.days_left}`;
+
+                const leaderboardBody = document.getElementById('leaderboard-body');
+                leaderboardBody.innerHTML = '';
+
+                if (data.team_members.length === 0) {
+                    leaderboardBody.innerHTML = `
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                                <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+                                <p>No team members found.</p>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    // Sort team members by total submitted (descending)
+                    data.team_members.sort((a, b) => b.total_submitted - a.total_submitted);
+                    
+                    data.team_members.forEach((member, index) => {
+                        const row = document.createElement('tr');
+                        if (member.name === '{{ user.full_name }}') {
+                            row.style.background = 'linear-gradient(135deg, #fff9e6 0%, #fff3d6 100%)';
+                            row.style.borderLeft = '4px solid #f39c12';
+                        }
+
+                        const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : 'rank-other';
+                        
+                        row.innerHTML = `
+                            <td><span class="rank-badge ${rankClass}">#${index + 1}</span></td>
+                            <td>
+                                <strong>${member.name}</strong>
+                                ${member.name === '{{ user.full_name }}' ? '<span class="status-badge status-submitted" style="margin-left: 0.5rem;">You</span>' : ''}
+                            </td>
+                            <td><strong>£${member.total_submitted.toFixed(2)}</strong></td>
+                            <td style="color: #2ecc71;"><strong>£${member.total_paid.toFixed(2)}</strong></td>
+                            <td>£${member.avg_case_size.toFixed(2)}</td>
+                        `;
+                        leaderboardBody.appendChild(row);
+                    });
+                }
+
+                document.querySelector('.leaderboard-title').textContent = `👥 ${data.team_name} Leaderboard (${data.team_members.length} members)`;
+                document.querySelector('.team-target h3').textContent = `🎯 ${data.team_name} Target (Current Month)`;
+
+            } catch (error) {
+                console.error('Error loading team data:', error);
+                document.querySelector('.leaderboard-title').textContent = 'Team Data Unavailable';
+                const leaderboardBody = document.getElementById('leaderboard-body');
+                leaderboardBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 2rem; color: #e74c3c;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
+                            <p>Error loading team data. Please try again later.</p>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        async function loadUserCases() {
+            try {
+                const dataType = document.getElementById('case-data-type').value;
+                const caseType = document.getElementById('case-type-filter').value;
+                
+                const casesBody = document.getElementById('cases-body');
+                casesBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="cases-loading">
+                            <div>📊 Loading cases...</div>
+                        </td>
+                    </tr>
+                `;
+                
+                let url = `/api/user-cases?data_type=${dataType}&case_type=${caseType}&period=${currentPeriod}`;
+                if (currentPeriod === 'custom' && customStartDate && customEndDate) {
+                    url += `&start=${customStartDate}&end=${customEndDate}`;
+                }
+                
+                const response = await fetch(url, { cache: 'no-store' });
+                const cases = await response.json();
+                
+                casesBody.innerHTML = '';
+
+                if (cases.length === 0) {
+                    casesBody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="cases-empty">
+                                <div class="cases-empty-icon">📋</div>
+                                <div><strong>No cases found</strong></div>
+                                <div style="margin-top: 0.5rem; font-size: 0.85rem;">
+                                    Try adjusting your filters or date range
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    cases.forEach((caseItem, index) => {
+                        const row = document.createElement('tr');
+                        const statusClass = caseItem.payment_status === 'Paid' ? 'status-paid' : 
+                                        caseItem.payment_status === 'Pending' ? 'status-pending' : 'status-submitted';
+                        
+                        row.innerHTML = `
+                            <td title="${caseItem.customer_name}">${caseItem.customer_name}</td>
+                            <td>
+                                <span>${caseItem.case_type}</span>
+                            </td>
+                            <td style="font-weight: 600; color: #2c3e50;">£${caseItem.fee_submitted.toFixed(2)}</td>
+                            <td><span class="status-badge ${statusClass}">${caseItem.payment_status}</span></td>
+                            <td style="font-weight: 500;">${caseItem.date}</td>
+                            <td><span class="status-badge status-submitted">${caseItem.data_type}</span></td>
+                        `;
+                        casesBody.appendChild(row);
+                    });
+                }
+
+                document.querySelector('.cases-title span').textContent = cases.length;
+
+                if (cases.length > 8) {
+                    const container = document.querySelector('.cases-table-container');
+                    container.title = `${cases.length} cases - scroll to see more`;
+                }
+
+            } catch (error) {
+                console.error('Error loading user cases:', error);
+                
+                const casesBody = document.getElementById('cases-body');
+                casesBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="cases-empty">
+                            <div class="cases-empty-icon">⚠️</div>
+                            <div><strong>Error loading cases</strong></div>
+                            <div style="margin-top: 0.5rem; font-size: 0.85rem;">
+                                Please try again or contact support
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        async function initializeChart() {
+            const ctx = document.getElementById('performance-chart').getContext('2d');
+            
+            if (performanceChart) {
+                performanceChart.destroy();
+                performanceChart = null;
+            }
+            
+            performanceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Total Submitted',
+                        data: [],
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '£' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 4,
+                            hoverRadius: 6
+                        }
+                    }
+                }
+            });
+
+            updateChart();
+        }
+
+        async function updateChart() {
+            if (!performanceChart) {
+                console.warn('Chart not initialized, calling initializeChart()');
+                await initializeChart();
+                return;
+            }
+
+            try {
+                let url = `/api/performance-timeline?period=${currentPeriod}&type=${currentChartType}`;
+                if (currentPeriod === 'custom' && customStartDate && customEndDate) {
+                    url += `&start=${customStartDate}&end=${customEndDate}`;
+                }
+                
+                const response = await fetch(url, { cache: 'no-store' });
+                const data = await response.json();
+
+                performanceChart.data.labels = data.map(item => item.date);
+                performanceChart.data.datasets[0].data = data.map(item => item.value);
+                performanceChart.data.datasets[0].label = currentChartType === 'submitted' ? 'Total Submitted' : 'Total Paid';
+                performanceChart.data.datasets[0].borderColor = currentChartType === 'submitted' ? '#3498db' : '#2ecc71';
+                performanceChart.data.datasets[0].backgroundColor = currentChartType === 'submitted' ? 'rgba(52, 152, 219, 0.1)' : 'rgba(46, 204, 113, 0.1)';
+                
+                performanceChart.update();
+
+                const total = data.length > 0 ? data[data.length - 1].value : 0;
+                const best = Math.max(...data.map(item => item.value), 0);
+                document.getElementById('chart-total').textContent = total.toFixed(2);
+                document.getElementById('chart-best').textContent = best.toFixed(2);
+
+            } catch (error) {
+                console.error('Error updating chart:', error);
+            }
+        }
+
+        function refreshLeaderboard() {
+            loadTeamData();
+        }
+
+        function refreshCases() {
+            loadUserCases();
+        }
+
+        // Test function for scrolling
+        function testScrolling() {
+            const casesBody = document.getElementById('cases-body');
+            casesBody.innerHTML = '';
+            
+            for (let i = 1; i <= 20; i++) {
+                const row = document.createElement('tr');
+                
+                row.innerHTML = `
+                    <td title="Sample Customer ${i}">Sample Customer ${i}</td>
+                    <td>
+                        <span>Residential Mortgage (Including BTL)</span>
+                    </td>
+                    <td style="font-weight: 600; color: #2c3e50;">£${(Math.random() * 5000 + 1000).toFixed(2)}</td>
+                    <td><span class="status-badge status-pending">Pending</span></td>
+                    <td style="font-weight: 500;">${String(i).padStart(2, '0')} Aug</td>
+                    <td><span class="status-badge status-submitted">Submitted</span></td>
+                `;
+                casesBody.appendChild(row);
+            }
+            
+            document.querySelector('.cases-title span').textContent = '20';
+            console.log('Added 20 test cases - table should now be scrollable!');
+        }
+    </script>
+</body>
+</html>

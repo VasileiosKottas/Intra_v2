@@ -1,0 +1,317 @@
+/* tables.css - All Table Styles - IMPROVED VERSION */
+
+/* Leaderboard Section - Enhanced */
+.leaderboard-section {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.leaderboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f8f9fa;
+}
+
+.leaderboard-title {
+    font-size: 1.5rem;
+    color: #2c3e50;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Leaderboard Table - Enhanced */
+.leaderboard-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+.leaderboard-table th,
+.leaderboard-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.leaderboard-table th {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.leaderboard-table tbody tr {
+    transition: all 0.3s ease;
+}
+
+.leaderboard-table tbody tr:hover {
+    background: #f8f9fa;
+    transform: scale(1.01);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Highlight current user row */
+.leaderboard-table tbody tr[style*="background: #fffacd"] {
+    background: linear-gradient(135deg, #fff9e6 0%, #fff3d6 100%) !important;
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.2);
+    border-left: 4px solid #f39c12;
+}
+
+/* Cases Section - Enhanced */
+.cases-section {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    max-height: 700px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.cases-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-shrink: 0;
+    background: white;
+    z-index: 20;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f8f9fa;
+}
+
+.cases-title {
+    font-size: 1.5rem;
+    color: #2c3e50;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.cases-filters {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+/* Cases Table Container - Enhanced Scrollable */
+.cases-table-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto;
+    min-height: 300px;
+    max-height: 500px;
+    border: 1px solid #f1f3f4;
+    border-radius: 12px;
+    position: relative;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+/* Cases Table - Enhanced */
+.cases-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    background: white;
+}
+
+/* Column Widths */
+.cases-table th:nth-child(1),
+.cases-table td:nth-child(1) { width: 20%; } /* Customer Name */
+.cases-table th:nth-child(2),
+.cases-table td:nth-child(2) { width: 25%; } /* Case Type */
+.cases-table th:nth-child(3),
+.cases-table td:nth-child(3) { width: 15%; } /* Fee Submitted */
+.cases-table th:nth-child(4),
+.cases-table td:nth-child(4) { width: 15%; } /* Payment Status */
+.cases-table th:nth-child(5),
+.cases-table td:nth-child(5) { width: 12%; } /* Date */
+.cases-table th:nth-child(6),
+.cases-table td:nth-child(6) { width: 13%; } /* Data Type */
+
+/* Cases Table Header - Enhanced */
+.cases-table th {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    font-weight: 600;
+    color: #2c3e50;
+    padding: 1rem 0.75rem;
+    text-align: left;
+    border-bottom: 2px solid #dee2e6;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    white-space: nowrap;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Cases Table Data - Enhanced */
+.cases-table td {
+    padding: 1rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #f1f3f4;
+    vertical-align: top;
+    word-wrap: break-word;
+    font-size: 0.95rem;
+}
+
+/* Table Hover Effects - Enhanced */
+.cases-table tbody tr:hover {
+    background: linear-gradient(135deg, #f8f9fa 0%, #f1f3f4 100%);
+    cursor: pointer;
+    transform: scale(1.01);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.cases-table tbody tr:nth-child(even) {
+    background: rgba(248, 249, 250, 0.5);
+}
+
+.cases-table tbody tr:nth-child(even):hover {
+    background: linear-gradient(135deg, #f8f9fa 0%, #f1f3f4 100%);
+}
+
+/* Enhanced Scrollbar Styling */
+.cases-table-container::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+.cases-table-container::-webkit-scrollbar-track {
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.cases-table-container::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px;
+    border: 2px solid #f8f9fa;
+}
+
+.cases-table-container::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #5a67d8 0%, #667eea 100%);
+}
+
+.cases-table-container::-webkit-scrollbar-corner {
+    background: #f8f9fa;
+}
+
+/* Empty and Loading States - Enhanced */
+.cases-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #7f8c8d;
+    background: white;
+}
+
+.cases-empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.cases-loading {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: #7f8c8d;
+    background: white;
+}
+
+.cases-loading::before {
+    content: '';
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+    display: block;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Case Type Badges - Enhanced */
+.cases-table td:nth-child(2) span {
+    background: linear-gradient(135deg, #cce5ff 0%, #b3d7ff 100%);
+    color: #004085;
+    padding: 0.4rem 0.8rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+    display: inline-block;
+    margin-bottom: 0.25rem;
+    border: 1px solid rgba(0, 64, 133, 0.2);
+}
+
+/* Responsive Tables - Enhanced */
+@media (max-width: 768px) {
+    .cases-section,
+    .leaderboard-section {
+        max-height: 500px;
+        padding: 1.5rem;
+    }
+    
+    .cases-table-container {
+        max-height: 350px;
+    }
+    
+    .cases-table th,
+    .cases-table td,
+    .leaderboard-table th,
+    .leaderboard-table td {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.85rem;
+    }
+    
+    .cases-filters {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .filter-select {
+        margin-bottom: 0.5rem;
+        min-width: 120px;
+    }
+
+    .cases-header,
+    .leaderboard-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+    
+    .cases-title,
+    .leaderboard-title {
+        font-size: 1.3rem;
+    }
+    
+    /* Stack case type badges on mobile */
+    .cases-table td:nth-child(2) span {
+        display: block;
+        margin-bottom: 0.25rem;
+        width: fit-content;
+    }
+}
