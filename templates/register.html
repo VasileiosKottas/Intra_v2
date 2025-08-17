@@ -20,24 +20,26 @@
         }
         
         .header {
-            background: linear-gradient(135deg, #2c3e50, #34495e);
+            background: linear-gradient(135deg, #122747, #122747);
             color: white;
             padding: 1rem 2rem;
             text-align: center;
         }
         
-        .header h1 {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 1.5rem;
-        }
-        
-        .header h1::before {
-            content: "📊";
-            font-size: 1.2em;
-        }
-        
+        .header h1 { 
+            display: flex; 
+            align-items: center; 
+            gap: 0.5rem; 
+            }
+
+            /* remove the old emoji if you had one */
+            .header h1::before { content: none; }
+
+            .logo {
+            height: 36px;   /* tweak to taste */
+            width: auto;
+            display: block;
+            }
         .main-container {
             flex: 1;
             display: flex;
@@ -285,7 +287,11 @@
 </head>
 <body>
     <div class="header">
-        <h1>The House of Windsor</h1>
+    <h1>
+        <img src="{{ url_for('static', filename='images/White_and_teal_on_blue_2.png') }}"
+            alt="The House of Windsor logo" class="logo">
+        WinSuite
+    </h1>
     </div>
 
     <div class="main-container">

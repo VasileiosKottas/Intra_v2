@@ -1,12 +1,13 @@
-/* components.css - Reusable Components - IMPROVED VERSION */
+/* components.css - Reusable Components - MOBILE OPTIMIZED VERSION */
 
-/* Period Controls - Enhanced */
+/* Period Controls - Enhanced Mobile */
 .period-controls {
     display: flex;
     justify-content: center;
     gap: 0.5rem;
-    margin-bottom: 3rem;
+    margin-bottom: 2rem;
     flex-wrap: wrap;
+    padding: 0 1rem;
 }
 
 .period-controls span {
@@ -15,10 +16,13 @@
     color: #2c3e50;
     font-weight: 600;
     font-size: 1rem;
+    text-align: center;
+    width: 100%;
+    margin-bottom: 1rem;
 }
 
 .period-btn {
-    padding: 0.75rem 1.5rem;
+    padding: 0.75rem 1.25rem;
     border: 2px solid #e1e8ed;
     background: white;
     border-radius: 8px;
@@ -28,6 +32,9 @@
     color: #2c3e50;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     white-space: nowrap;
+    min-width: 100px;
+    text-align: center;
+    font-size: 0.9rem;
 }
 
 .period-btn.active {
@@ -45,18 +52,19 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Custom Date Range Indicator - Enhanced */
+/* Custom Date Range Indicator - Enhanced Mobile */
 .custom-date-range {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: #7f8c8d;
     margin-left: 0.5rem;
     font-style: italic;
     background: rgba(255, 255, 255, 0.2);
     padding: 0.25rem 0.5rem;
     border-radius: 4px;
+    word-break: break-all;
 }
 
-/* Refresh Button - Enhanced */
+/* Refresh Button - Enhanced Mobile */
 .refresh-btn {
     padding: 0.75rem 1.5rem;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -67,6 +75,8 @@
     transition: all 0.3s ease;
     font-weight: 500;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    font-size: 0.9rem;
+    min-width: 120px;
 }
 
 .refresh-btn:hover {
@@ -74,7 +84,7 @@
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
-/* Filter Select - Enhanced */
+/* Filter Select - Enhanced Mobile */
 .filter-select {
     padding: 0.75rem;
     border: 2px solid #e1e8ed;
@@ -84,6 +94,8 @@
     color: #2c3e50;
     transition: all 0.3s ease;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    font-size: 0.9rem;
+    min-width: 140px;
 }
 
 .filter-select:focus {
@@ -92,15 +104,16 @@
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-/* Status Badges - Enhanced */
+/* Status Badges - Enhanced Mobile */
 .status-badge {
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 16px;
+    font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
     display: inline-block;
+    white-space: nowrap;
 }
 
 .status-pending {
@@ -121,36 +134,37 @@
     border: 1px solid #74b9ff;
 }
 
-/* Rank Badges - Enhanced */
+/* Rank Badges - Enhanced Mobile */
 .rank-badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     font-weight: 700;
     color: white;
-    font-size: 0.9rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    font-size: 0.8rem;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+    flex-shrink: 0;
 }
 
 .rank-1 { 
     background: linear-gradient(135deg, #f1c40f 0%, #f39c12 100%);
-    box-shadow: 0 4px 12px rgba(241, 196, 15, 0.4);
+    box-shadow: 0 3px 8px rgba(241, 196, 15, 0.4);
 }
 
 .rank-2 { 
     background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
-    box-shadow: 0 4px 12px rgba(149, 165, 166, 0.4);
+    box-shadow: 0 3px 8px rgba(149, 165, 166, 0.4);
 }
 
 .rank-other { 
     background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+    box-shadow: 0 3px 8px rgba(52, 152, 219, 0.4);
 }
 
-/* Enhanced Button Styles */
+/* Enhanced Button Styles - Mobile Optimized */
 .btn-primary {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -161,6 +175,8 @@
     cursor: pointer;
     transition: all 0.3s ease;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    font-size: 0.9rem;
+    min-height: 44px; /* Touch target size */
 }
 
 .btn-primary:hover {
@@ -177,6 +193,8 @@
     font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
+    font-size: 0.9rem;
+    min-height: 44px; /* Touch target size */
 }
 
 .btn-secondary:hover {
@@ -185,32 +203,137 @@
     transform: translateY(-1px);
 }
 
-/* Responsive Adjustments - Enhanced */
-@media (max-width: 768px) {
+/* Mobile-First Responsive Adjustments */
+@media (max-width: 480px) {
     .period-controls {
         flex-direction: column;
-        align-items: center;
-        gap: 1rem;
+        align-items: stretch;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+        padding: 0 0.5rem;
     }
     
     .period-controls span {
         margin: 0;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.75rem;
+        font-size: 0.95rem;
     }
 
     .period-btn {
         width: 100%;
-        max-width: 200px;
-        text-align: center;
+        padding: 1rem;
+        font-size: 0.9rem;
+        min-height: 44px;
     }
 
     .refresh-btn {
         width: 100%;
         margin-bottom: 1rem;
+        padding: 1rem;
+        font-size: 0.9rem;
     }
 
     .filter-select {
         width: 100%;
         margin-bottom: 0.5rem;
+        padding: 1rem 0.75rem;
+        font-size: 0.9rem;
+    }
+
+    .status-badge {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.7rem;
+    }
+
+    .rank-badge {
+        width: 28px;
+        height: 28px;
+        font-size: 0.75rem;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        width: 100%;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    .custom-date-range {
+        font-size: 0.7rem;
+        margin-left: 0;
+        margin-top: 0.25rem;
+        display: block;
+        text-align: center;
+    }
+}
+
+@media (max-width: 768px) and (min-width: 481px) {
+    .period-controls {
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .period-controls span {
+        width: 100%;
+        margin-bottom: 1rem;
+        font-size: 0.95rem;
+    }
+
+    .period-btn {
+        min-width: 90px;
+        padding: 0.75rem 1rem;
+        font-size: 0.85rem;
+    }
+
+    .refresh-btn {
+        width: auto;
+        min-width: 120px;
+        font-size: 0.85rem;
+    }
+
+    .filter-select {
+        min-width: 120px;
+        font-size: 0.85rem;
+    }
+}
+
+/* Landscape Phone Adjustments */
+@media (max-height: 500px) and (orientation: landscape) {
+    .period-controls {
+        margin-bottom: 1rem;
+    }
+    
+    .period-controls span {
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .period-btn {
+        padding: 0.5rem 1rem;
+    }
+    
+    .refresh-btn {
+        padding: 0.5rem 1rem;
+    }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+    .period-btn,
+    .refresh-btn,
+    .filter-select,
+    .btn-primary,
+    .btn-secondary {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    .period-btn:hover,
+    .refresh-btn:hover,
+    .btn-primary:hover,
+    .btn-secondary:hover {
+        transform: none; /* Disable hover transforms on touch devices */
     }
 }

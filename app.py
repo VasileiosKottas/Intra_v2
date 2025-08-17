@@ -19,9 +19,14 @@ import schedule
 from sqlalchemy import or_, and_
 from flask_cors import CORS
 
+
 app = Flask(__name__)
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+db_path = os.path.join(basedir, "instance", "sales_dashboard.db")
+os.makedirs(os.path.dirname(db_path), exist_ok=True)
+app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///" + db_path
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////opt/render/project/src/instance/sales_dashboard.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 JOTFORM_API_KEY = os.getenv('JOTFORM_API_KEY', 'b78b083ca0a78392acf8de69666a3577')  # replace the hardcoded key
 origins = os.getenv('CORS_ORIGINS', '*')
@@ -36,6 +41,10 @@ VALID_BUSINESS_TYPES = [
     'Residential Mortgage (Including BTL)',
     'Personal Insurance (Including GI)',
     'Product Transfer'
+]
+
+VALID_PAID_CASE_TYPES = [
+    'Residential'
 ]
 
 def _parse_date(s):
@@ -414,7 +423,7 @@ class DataManager:
             return []
         
         processed_cases = []
-        
+    
         for case in paid_data:
             try:
                 data = case.get("mapped_data", {})
@@ -436,7 +445,9 @@ class DataManager:
                 if not date_paid:
                     date_paid = self.parse_date(case.get("created_at", ""))
                 
-                if advisor_name and case_type and value > 0:
+                if (advisor_name and 
+                    case_type in VALID_PAID_CASE_TYPES and  # NEW FILTER
+                    value > 0):
                     processed_cases.append({
                         'advisor_name': advisor_name,
                         'case_type': case_type,
@@ -444,7 +455,6 @@ class DataManager:
                         'date_paid': date_paid or datetime.now().date(),
                         'jotform_id': case.get("submission_id")
                     })
-                    
             except Exception as e:
                 print(f"Error processing paid case: {e}")
                 continue
@@ -770,6 +780,7 @@ def get_dashboard_data():
         and_(
             PaidCase.date_paid >= start_date,
             PaidCase.date_paid <= end_date,
+            PaidCase.case_type.in_(VALID_PAID_CASE_TYPES),  # NEW FILTER
             or_(
                 PaidCase.advisor_id == user.id,
                 and_(PaidCase.advisor_id.is_(None), PaidCase.advisor_name == user.full_name)
@@ -862,11 +873,12 @@ def get_user_cases():
         ])
 
     else:
-        # For paid cases, use the same date filtering
+        # UPDATED: For paid cases, add residential filter
         query = PaidCase.query.filter(
             and_(
                 PaidCase.date_paid >= start_date,
                 PaidCase.date_paid <= end_date,
+                PaidCase.case_type.in_(VALID_PAID_CASE_TYPES),  # NEW FILTER
                 or_(
                     PaidCase.advisor_id == user.id,
                     and_(PaidCase.advisor_id.is_(None), PaidCase.advisor_name == user.full_name)
@@ -877,7 +889,7 @@ def get_user_cases():
             query = query.filter(PaidCase.case_type == case_type_filter)
 
         cases = query.order_by(PaidCase.date_paid.desc()).all()
-        
+     
         print(f"DEBUG Cases: Found {len(cases)} paid cases")
 
         return jsonify([
@@ -924,6 +936,7 @@ def get_team_data():
             and_(
                 PaidCase.date_paid >= start_date,
                 PaidCase.date_paid <= end_date,
+                PaidCase.case_type.in_(VALID_PAID_CASE_TYPES),  # NEW FILTER
                 or_(
                     PaidCase.advisor_id == member.id,
                     and_(PaidCase.advisor_id.is_(None), PaidCase.advisor_name == member.full_name)
@@ -1018,6 +1031,7 @@ def get_performance_timeline():
         and_(
             PaidCase.date_paid >= start_date,
             PaidCase.date_paid <= end_date,
+            PaidCase.case_type.in_(VALID_PAID_CASE_TYPES),  # NEW FILTER
             or_(
                 PaidCase.advisor_id == user.id,
                 and_(PaidCase.advisor_id.is_(None), PaidCase.advisor_name == user.full_name)
@@ -1208,6 +1222,7 @@ def get_advisor_stats(advisor_id):
         and_(
             PaidCase.date_paid >= start_date,
             PaidCase.date_paid <= end_date,
+            PaidCase.case_type.in_(VALID_PAID_CASE_TYPES),  # NEW FILTER
             or_(
                 PaidCase.advisor_id == advisor.id,
                 and_(PaidCase.advisor_id.is_(None), PaidCase.advisor_name == advisor.full_name)

@@ -1,6 +1,6 @@
-/* modal.css - Date Picker Modal Styles - IMPROVED VERSION */
+/* modal.css - Date Picker Modal Styles - MOBILE OPTIMIZED VERSION */
 
-/* Date Modal - Enhanced */
+/* Date Modal - Mobile Enhanced */
 .date-modal {
     display: none !important;
     position: fixed;
@@ -11,23 +11,33 @@
     height: 100%;
     background-color: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .date-modal.show {
-    display: block !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
 }
 
-/* Modal Content - Enhanced */
+/* Modal Content - Mobile Enhanced */
 .date-modal-content {
     background: white;
-    margin: 5% auto;
-    padding: 2.5rem;
+    padding: 2rem;
     border-radius: 16px;
-    width: 90%;
-    max-width: 450px;
+    width: 100%;
+    max-width: 420px;
+    max-height: 90vh;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     animation: modalFadeIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     border: 1px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: auto;
 }
 
 @keyframes modalFadeIn {
@@ -41,7 +51,7 @@
     }
 }
 
-/* Modal Header - Enhanced */
+/* Modal Header - Mobile Enhanced */
 .date-modal-header {
     display: flex;
     justify-content: space-between;
@@ -49,33 +59,38 @@
     margin-bottom: 2rem;
     padding-bottom: 1rem;
     border-bottom: 2px solid #f8f9fa;
+    gap: 1rem;
 }
 
 .date-modal-header h3 {
     margin: 0;
     color: #2c3e50;
-    font-size: 1.4rem;
+    font-size: 1.3rem;
     font-weight: 600;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    flex: 1;
+    line-height: 1.2;
 }
 
 .close-date-modal {
     background: rgba(127, 140, 141, 0.1);
     border: none;
-    font-size: 1.5rem;
+    font-size: 1.3rem;
     cursor: pointer;
     color: #7f8c8d;
     padding: 0;
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
     transition: all 0.3s ease;
+    flex-shrink: 0;
+    touch-action: manipulation;
 }
 
 .close-date-modal:hover {
@@ -84,7 +99,7 @@
     transform: scale(1.1);
 }
 
-/* Date Inputs - Enhanced */
+/* Date Inputs - Mobile Enhanced */
 .date-inputs {
     margin-bottom: 2rem;
 }
@@ -99,6 +114,7 @@
     color: #2c3e50;
     font-weight: 600;
     font-size: 1rem;
+    line-height: 1.2;
 }
 
 .date-input {
@@ -111,6 +127,11 @@
     background: #f8f9fa;
     color: #2c3e50;
     font-weight: 500;
+    box-sizing: border-box;
+    min-height: 48px; /* Touch-friendly height */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
 }
 
 .date-input:focus {
@@ -121,11 +142,12 @@
     transform: translateY(-1px);
 }
 
-/* Modal Buttons - Enhanced */
+/* Modal Buttons - Mobile Enhanced */
 .date-modal-buttons {
     display: flex;
     gap: 1rem;
     justify-content: flex-end;
+    flex-wrap: wrap;
 }
 
 .btn-cancel, .btn-apply {
@@ -137,12 +159,19 @@
     font-size: 1rem;
     transition: all 0.3s ease;
     min-width: 120px;
+    min-height: 48px;
+    touch-action: manipulation;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
 }
 
 .btn-cancel {
     background: #f8f9fa;
     color: #7f8c8d;
     border: 2px solid #ecf0f1;
+    flex: 1;
 }
 
 .btn-cancel:hover {
@@ -155,6 +184,7 @@
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    flex: 1;
 }
 
 .btn-apply:hover {
@@ -166,31 +196,236 @@
     transform: translateY(0);
 }
 
-/* Responsive Modal - Enhanced */
-@media (max-width: 768px) {
-    .date-modal-content {
-        margin: 10% auto;
-        padding: 2rem;
-        width: 95%;
-        max-width: none;
+/* Mobile-First Responsive Design */
+@media (max-width: 480px) {
+    .date-modal {
+        padding: 0.5rem;
+        align-items: flex-start;
+        padding-top: 10vh;
     }
-    
+
+    .date-modal-content {
+        padding: 1.5rem;
+        border-radius: 12px;
+        max-height: 85vh;
+        width: 100%;
+        max-width: none;
+        margin: 0;
+    }
+
+    .date-modal-header {
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .date-modal-header h3 {
+        font-size: 1.1rem;
+        width: calc(100% - 50px);
+    }
+
+    .close-date-modal {
+        width: 36px;
+        height: 36px;
+        font-size: 1.2rem;
+    }
+
+    .date-inputs {
+        margin-bottom: 1.5rem;
+    }
+
+    .date-input-group {
+        margin-bottom: 1.25rem;
+    }
+
+    .date-input-group label {
+        font-size: 0.95rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .date-input {
+        padding: 0.875rem;
+        font-size: 0.95rem;
+        border-radius: 6px;
+        min-height: 44px;
+    }
+
     .date-modal-buttons {
         flex-direction: column;
-        gap: 1rem;
+        gap: 0.75rem;
+        margin-top: 1rem;
     }
-    
+
     .btn-cancel, .btn-apply {
         width: 100%;
-        margin-bottom: 0;
+        padding: 0.875rem 1rem;
+        font-size: 0.95rem;
+        min-height: 44px;
+        min-width: auto;
+        flex: none;
+    }
+}
+
+@media (max-width: 768px) and (min-width: 481px) {
+    .date-modal {
+        padding: 1rem;
+    }
+
+    .date-modal-content {
+        padding: 1.75rem;
+        max-width: 380px;
+        max-height: 88vh;
     }
 
     .date-modal-header h3 {
         font-size: 1.2rem;
     }
+
+    .close-date-modal {
+        width: 38px;
+        height: 38px;
+    }
+
+    .date-input {
+        padding: 0.9rem;
+        font-size: 0.95rem;
+        min-height: 46px;
+    }
+
+    .date-modal-buttons {
+        gap: 0.875rem;
+    }
+
+    .btn-cancel, .btn-apply {
+        padding: 0.9rem 1.5rem;
+        font-size: 0.95rem;
+        min-height: 46px;
+        min-width: 110px;
+    }
 }
 
-/* Additional animations and effects */
+/* Tablet optimizations */
+@media (max-width: 1024px) and (min-width: 769px) {
+    .date-modal-content {
+        max-width: 400px;
+    }
+
+    .date-input {
+        min-height: 47px;
+    }
+
+    .btn-cancel, .btn-apply {
+        min-height: 47px;
+    }
+}
+
+/* Large screens */
+@media (min-width: 1200px) {
+    .date-modal-content {
+        padding: 2.5rem;
+        max-width: 450px;
+    }
+
+    .date-modal-header h3 {
+        font-size: 1.4rem;
+    }
+
+    .close-date-modal {
+        width: 42px;
+        height: 42px;
+        font-size: 1.4rem;
+    }
+}
+
+/* Landscape phone adjustments */
+@media (max-height: 500px) and (orientation: landscape) {
+    .date-modal {
+        padding: 0.5rem;
+        align-items: flex-start;
+        padding-top: 2vh;
+    }
+
+    .date-modal-content {
+        padding: 1.25rem;
+        max-height: 95vh;
+        border-radius: 10px;
+    }
+
+    .date-modal-header {
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+    }
+
+    .date-modal-header h3 {
+        font-size: 1rem;
+    }
+
+    .close-date-modal {
+        width: 32px;
+        height: 32px;
+        font-size: 1.1rem;
+    }
+
+    .date-inputs {
+        margin-bottom: 1rem;
+    }
+
+    .date-input-group {
+        margin-bottom: 1rem;
+    }
+
+    .date-input-group label {
+        font-size: 0.9rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .date-input {
+        padding: 0.75rem;
+        font-size: 0.9rem;
+        min-height: 40px;
+    }
+
+    .date-modal-buttons {
+        gap: 0.75rem;
+        margin-top: 0.75rem;
+    }
+
+    .btn-cancel, .btn-apply {
+        padding: 0.75rem 1.25rem;
+        font-size: 0.9rem;
+        min-height: 40px;
+        min-width: 100px;
+    }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+    .close-date-modal,
+    .btn-cancel,
+    .btn-apply,
+    .date-input {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .close-date-modal:hover,
+    .btn-cancel:hover,
+    .btn-apply:hover {
+        transform: none; /* Disable hover transforms on touch devices */
+    }
+
+    .date-input:focus {
+        transform: none;
+    }
+
+    /* Ensure proper touch targets */
+    .date-modal-buttons {
+        gap: 1rem;
+    }
+}
+
+/* Additional animations and effects - Mobile Safe */
 .date-modal-content::before {
     content: '';
     position: absolute;
@@ -206,10 +441,11 @@
     position: relative;
 }
 
-/* Loading state for apply button */
+/* Loading state for apply button - Mobile Enhanced */
 .btn-apply.loading {
     pointer-events: none;
     opacity: 0.7;
+    position: relative;
 }
 
 .btn-apply.loading::after {
@@ -227,4 +463,62 @@
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .date-modal-content {
+        border: 2px solid #000;
+    }
+
+    .date-input {
+        border: 2px solid #000;
+    }
+
+    .btn-cancel {
+        border: 2px solid #000;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .date-modal-content {
+        animation: none;
+    }
+
+    .close-date-modal:hover,
+    .btn-cancel:hover,
+    .btn-apply:hover,
+    .date-input:focus {
+        transform: none;
+    }
+
+    .btn-apply.loading::after {
+        animation: none;
+    }
+}
+
+/* Prevent zoom on input focus for iOS */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+    .date-input {
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Focus visible support for keyboard navigation */
+.close-date-modal:focus-visible,
+.btn-cancel:focus-visible,
+.btn-apply:focus-visible,
+.date-input:focus-visible {
+    outline: 2px solid #667eea;
+    outline-offset: 2px;
 }
