@@ -11,15 +11,187 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/metrics.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tables.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modal.css') }}">
+    
+    <!-- Add custom styles for company toggle and dark theme -->
+    <style>
+        :root {
+            /* Windsor Colors (Light Theme) */
+            --primary-color: #122747;
+            --secondary-color: #667eea;
+            --background-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            --header-gradient: linear-gradient(135deg, #122747 0%, #122747 100%);
+            --text-color: #122747;
+            --card-background: white;
+            --border-color: #e1e8ed;
+        }
+
+        /* CnC Colors (Dark Theme) */
+        body.cnc-theme {
+            --primary-color: #000000;
+            --secondary-color: #f19420;
+            --background-gradient: linear-gradient(135deg, #ffffff 0%, #f19420 100%);
+            --header-gradient: linear-gradient(135deg, #000000 0%, #000000 100%);
+            --text-color: #000000;
+            --card-background: #ffffff;
+            --border-color: #ffffff;
+        }
+
+        body {
+            background: var(--background-gradient);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+
+        .header {
+            background: var(--header-gradient);
+            transition: all 0.3s ease;
+        }
+
+        .company-selector {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            padding: 0.5rem;
+            color: white;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-right: 1rem;
+        }
+        
+        .company-selector:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        
+        .company-selector option {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .company-indicator {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 0.5rem;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        /* Dark theme for cards and sections */
+        body.cnc-theme .metric-card,
+        body.cnc-theme .chart-section,
+        body.cnc-theme .team-target,
+        body.cnc-theme .user-goal-section,
+        body.cnc-theme .leaderboard-section,
+        body.cnc-theme .cases-section {
+            background: var(--card-background);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+
+        body.cnc-theme .dashboard-title {
+            background: linear-gradient(135deg, var(--text-color) 0%, var(--text-color) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        body.cnc-theme .metric-value,
+        body.cnc-theme .chart-title,
+        body.cnc-theme .leaderboard-title,
+        body.cnc-theme .cases-title {
+            color: var(--text-color);
+        }
+
+        body.cnc-theme .period-btn {
+            background: var(--card-background);
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+
+        body.cnc-theme .period-btn.active {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, var(--secondary-color) 100%);
+        }
+
+        body.cnc-theme .refresh-btn {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, var(--secondary-color) 100%);
+        }
+
+        body.cnc-theme .filter-select {
+            background: var(--card-background);
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+
+        body.cnc-theme .leaderboard-table,
+        body.cnc-theme .cases-table {
+            background: var(--card-background);
+        }
+
+        body.cnc-theme .leaderboard-table th,
+        body.cnc-theme .cases-table th {
+            background: linear-gradient(135deg, #ffffff 0%, #f19420 100%);
+            color: rgb(0, 0, 0);
+        }
+
+        body.cnc-theme .leaderboard-table td,
+        body.cnc-theme .cases-table td {
+            color: var(--text-color);
+            border-bottom-color: var(--border-color);
+        }
+
+        body.cnc-theme .metric-card::before {
+            background: linear-gradient(90deg, var(--secondary-color), var(--secondary-color));
+        }
+
+        body.cnc-theme .target-row,
+        body.cnc-theme .goal-row {
+            background: var(--border-color);
+            color: var(--text-color);
+        }
+
+        body.cnc-theme .cases-table-container {
+            border-color: var(--border-color);
+        }
+
+        @media (max-width: 480px) {
+            .company-selector {
+                margin-right: 0.5rem;
+                font-size: 0.85rem;
+                padding: 0.4rem;
+            }
+            
+            .company-indicator {
+                font-size: 0.7rem;
+                padding: 0.2rem 0.5rem;
+                margin-left: 0.25rem;
+            }
+        }
+
+        /* Logo switching styles */
+        .logo {
+            transition: all 0.3s ease;
+        }
+
+
+    </style>
 </head>
-<body>
+<body class="{{ 'cnc-theme' if session.get('company_mode', 'windsor') == 'cnc' else '' }}">
     <div class="header">
         <h1>
-            <img src="{{ url_for('static', filename='images/White_and_teal_on_blue_2.png') }}"
-                alt="The House of Windsor logo" class="logo">
-            WinSuite
+            <img src="{{ url_for('static', filename='images/' + ('CnC.png' if session.get('company_mode', 'windsor') == 'cnc' else company_config.logo)) }}"
+                alt="Company logo" class="logo {{ 'cnc-logo' if session.get('company_mode', 'windsor') == 'cnc' else '' }}" id="company-logo">
+            <span id="suite-name">{{ 'CSuite' if session.get('company_mode', 'windsor') == 'cnc' else 'WinSuite' }}</span>
+            <span class="company-indicator" id="company-indicator">{{ 'C&C' if session.get('company_mode', 'windsor') == 'cnc' else 'Windsor' }}</span>
         </h1>
         <div class="user-info">
+            <select id="company-selector" class="company-selector" onchange="switchCompany()">
+                <option value="windsor" {{ 'selected' if session.get('company_mode', 'windsor') == 'windsor' else '' }}>Windsor</option>
+                <option value="cnc" {{ 'selected' if session.get('company_mode', 'windsor') == 'cnc' else '' }}>C&C</option>
+            </select>
             <span>Welcome, {{ user.full_name }}!</span>
             <a href="/logout" class="logout-btn">Logout</a>
         </div>
@@ -72,7 +244,7 @@
                 <div class="metric-value" id="total-submitted">£0.00</div>
                 <div class="metric-detail">Your Proc: £<span id="your-proc">0.00</span></div>
                 <div class="metric-detail">Your Fee: £<span id="your-fee">0.00</span></div>
-                <div class="metric-value" style="color: var(--card-color); margin-top: 1rem; font-size: 1.5rem;">
+                <div class="metric-value" style="color: var(--secondary-color); margin-top: 1rem; font-size: 1.5rem;">
                     £<span id="combined-total">0.00</span>
                 </div>
                 <div class="metric-detail">Your Combined Total</div>
@@ -98,7 +270,7 @@
                 </div>
                 <div class="metric-value" id="total-applications">0</div>
                 <div class="metric-detail" id="applications-breakdown">
-                    Residential, Personal Insurance, Commercial
+                    Loading applications...
                 </div>
                 <div class="metric-detail">Your Average per Application: £<span id="avg-per-application">0.00</span></div>
             </div>
@@ -111,7 +283,7 @@
                 <div class="metric-value" id="referrals-made">0</div>
                 <div class="metric-detail">Referrals you've made</div>
                 <div style="margin-top: 1rem;">
-                    <div style="font-weight: 600; color: var(--card-color);">Made: <span id="referrals-made-count">0</span></div>
+                    <div style="font-weight: 600; color: var(--secondary-color);">Made: <span id="referrals-made-count">0</span></div>
                     <div style="color: #7f8c8d;">Received: <span id="referrals-received-count">0</span></div>
                 </div>
             </div>
@@ -136,72 +308,71 @@
             </div>
 
             <div class="team-target">
-                                <!-- Team Monthly Goal Section -->
-                    <h3 id="team-target-title">🎯 Team Monthly Goal</h3>
-                    <div class="target-progress" style="display:flex; align-items:center; gap:10px;">
-                    <div class="progress-bar" style="flex:1;">
-                        <div class="progress-fill" id="team-progress-bar" style="width: 0%"></div>
-                    </div>
-                    <div class="target-percentage" id="team-progress"
-                        style="min-width:3.5ch; text-align:right; font-weight:600;">0%</div>
-                    </div>
-                <div class="target-details">
-                    <div class="target-row">
-                        <span>🎯 Start:</span>
-                        <span>£0</span>
-                    </div>
-                    <div class="target-row">
-                        <span>📊 Team Monthly Goal:</span>
-                        <span><strong>£<span id="team-goal">50,000.00</span></strong></span>
-                    </div>
-                    <div class="target-row">
-                        <span>💰 Team Total This Month:</span>
-                        <span><strong>£<span id="team-submitted">16,306.48</span></strong></span>
-                    </div>
-                    <div class="target-row">
-                        <span>💷 Team Remaining:</span>
-                        <span>£<span id="team-remaining">33,693.52</span></span>
-                    </div>
-                    <div class="target-row">
-                        <span>📅 Days Left in Month:</span>
-                        <span><span id="days-left">18</span> days</span>
-                    </div>
-
+                <!-- Team Monthly Goal Section -->
+                <h3 id="team-target-title">🎯 Team Monthly Goal</h3>
+                <div class="target-progress" style="display:flex; align-items:center; gap:10px;">
+                <div class="progress-bar" style="flex:1;">
+                    <div class="progress-fill" id="team-progress-bar" style="width: 0%"></div>
                 </div>
-                <!-- User Yearly Goal Section -->
-                <div class="user-goal-section">
-                    <h4 style="color: #667eea; margin-top: 1.5rem; font-size: 1.1rem; font-weight: 600;">👤 Your Yearly Goal Progress</h4>
-                    <div class="goal-progress" style="margin-bottom:1.2rem; display:flex; align-items:center; gap:10px;">
-                        <div class="progress-bar" style="flex:1;">
-                            <div class="progress-fill" id="user-yearly-progress-bar" style="width:0%"></div>
-                        </div>
-                        <div class="goal-percentage" id="user-yearly-progress"
-                            style="min-width:3.5ch; text-align:right; font-weight:600;">0%</div>
-                    </div>
-                    <div class="goal-details" style="margin-bottom: 2rem;">
-                        <div class="goal-row">
-                            <span>🎯 Your Yearly Goal:</span>
-                            <span><strong>£<span id="user-yearly-goal">0.00</span></strong></span>
-                        </div>
-                        <div class="goal-row">
-                            <span>💰 Your Total This Year:</span>
-                            <span><strong>£<span id="user-yearly-submitted">0.00</span></strong></span>
-                        </div>
-                        <div class="goal-row">
-                            <span>💷 Remaining:</span>
-                            <span>£<span id="user-yearly-remaining">0.00</span></span>
-                        </div>
-                        <div class="goal-row">
-                            <span>📅 Days Left in Year:</span>
-                            <span><span id="user-days-left-year">365</span> days</span>
-                        </div>
-                    </div>
+                <div class="target-percentage" id="team-progress"
+                    style="min-width:3.5ch; text-align:right; font-weight:600;">0%</div>
                 </div>
-
-                <!-- Divider -->
-
+            <div class="target-details">
+                <div class="target-row">
+                    <span>🎯 Start:</span>
+                    <span>£0</span>
+                </div>
+                <div class="target-row">
+                    <span>📊 Team Monthly Goal:</span>
+                    <span><strong>£<span id="team-goal">50,000.00</span></strong></span>
+                </div>
+                <div class="target-row">
+                    <span>💰 Team Total This Month:</span>
+                    <span><strong>£<span id="team-submitted">16,306.48</span></strong></span>
+                </div>
+                <div class="target-row">
+                    <span>💷 Team Remaining:</span>
+                    <span>£<span id="team-remaining">33,693.52</span></span>
+                </div>
+                <div class="target-row">
+                    <span>📅 Days Left in Month:</span>
+                    <span><span id="days-left">18</span> days</span>
+                </div>
 
             </div>
+            <!-- User Yearly Goal Section -->
+            <div class="user-goal-section">
+                <h4 style="color: var(--secondary-color); margin-top: 1.5rem; font-size: 1.1rem; font-weight: 600;">👤 Your Yearly Goal Progress</h4>
+                <div class="goal-progress" style="margin-bottom:1.2rem; display:flex; align-items:center; gap:10px;">
+                    <div class="progress-bar" style="flex:1;">
+                        <div class="progress-fill" id="user-yearly-progress-bar" style="width:0%"></div>
+                    </div>
+                    <div class="goal-percentage" id="user-yearly-progress"
+                        style="min-width:3.5ch; text-align:right; font-weight:600;">0%</div>
+                </div>
+                <div class="goal-details" style="margin-bottom: 2rem;">
+                    <div class="goal-row">
+                        <span>🎯 Your Yearly Goal:</span>
+                        <span><strong>£<span id="user-yearly-goal">0.00</span></strong></span>
+                    </div>
+                    <div class="goal-row">
+                        <span>💰 Your Total This Year:</span>
+                        <span><strong>£<span id="user-yearly-submitted">0.00</span></strong></span>
+                    </div>
+                    <div class="goal-row">
+                        <span>💷 Remaining:</span>
+                        <span>£<span id="user-yearly-remaining">0.00</span></span>
+                    </div>
+                    <div class="goal-row">
+                        <span>📅 Days Left in Year:</span>
+                        <span><span id="user-days-left-year">365</span> days</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Divider -->
+
+        </div>
         </div>
 
         <div class="leaderboard-section">
@@ -222,22 +393,10 @@
                 </thead>
                 <tbody id="leaderboard-body">
                     <tr>
-                        <td><span class="rank-badge rank-1">#1</span></td>
-                        <td><strong>Steven Horn</strong> <span style="color: #f39c12;">10 cases</span></td>
-                        <td><strong>£10,657.48</strong></td>
-                        <td style="color: #2ecc71;"><strong>£72,043.10</strong></td>
-                        <td>£1,065.75</td>
-                    </tr>
-                    <tr style="background: linear-gradient(135deg, #fff9e6 0%, #fff3d6 100%); border-left: 4px solid #f39c12;">
-                        <td><span class="rank-badge rank-2">#2</span></td>
-                        <td>
-                            <strong>Jamie Cope</strong> 
-                            <span class="status-badge status-submitted" style="margin-left: 0.5rem;">You</span>
-                            <span style="color: #f39c12; margin-left: 0.5rem;">4 cases</span>
+                        <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+                            <p>Loading team data...</p>
                         </td>
-                        <td><strong>£5,649.00</strong></td>
-                        <td style="color: #2ecc71;"><strong>£11,892.51</strong></td>
-                        <td>£1,412.25</td>
                     </tr>
                 </tbody>
             </table>
@@ -245,7 +404,7 @@
 
         <div class="cases-section">
             <div class="cases-header">
-                <div class="cases-title">📋 Your Cases <span class="status-badge status-submitted">17</span></div>
+                <div class="cases-title">📋 Your Cases <span class="status-badge status-submitted">0</span></div>
                 <div class="cases-filters">
                     <button class="refresh-btn" onclick="refreshCases()">🔄 Refresh</button>
                     <select class="filter-select" id="case-data-type">
@@ -254,9 +413,7 @@
                     </select>
                     <select class="filter-select" id="case-type-filter">
                         <option value="all">All Case Types</option>
-                        <option value="Residential Mortgage (Including BTL)">Residential Mortgage (Including BTL)</option>
-                        <option value="Personal Insurance (Including GI)">Personal Insurance (Including GI)</option>
-                        <option value="Product Transfer">Product Transfer</option>
+                        <!-- Dynamic options will be populated by JavaScript -->
                     </select>
                 </div>
             </div>
@@ -275,36 +432,11 @@
                         </tr>
                     </thead>
                     <tbody id="cases-body">
-                        <!-- Sample data to show styling -->
                         <tr>
-                            <td>Michael Smith & Sarah Johnson</td>
-                            <td>
-                                <span>Residential Mortgage (Including BTL)</span>
+                            <td colspan="6" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                                <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+                                <p>Loading cases...</p>
                             </td>
-                            <td style="font-weight: 600; color: #2c3e50;">£2,850.00</td>
-                            <td><span class="status-badge status-pending">Pending</span></td>
-                            <td style="font-weight: 500;">15 Aug</td>
-                            <td><span class="status-badge status-submitted">Submitted</span></td>
-                        </tr>
-                        <tr>
-                            <td>David Wilson</td>
-                            <td>
-                                <span>Personal Insurance (Including GI)</span>
-                            </td>
-                            <td style="font-weight: 600; color: #2c3e50;">£1,250.00</td>
-                            <td><span class="status-badge status-paid">Paid</span></td>
-                            <td style="font-weight: 500;">12 Aug</td>
-                            <td><span class="status-badge status-submitted">Submitted</span></td>
-                        </tr>
-                        <tr>
-                            <td>Emma Thompson & James Brown</td>
-                            <td>
-                                <span>Product Transfer</span>
-                            </td>
-                            <td style="font-weight: 600; color: #2c3e50;">£3,200.00</td>
-                            <td><span class="status-badge status-pending">Pending</span></td>
-                            <td style="font-weight: 500;">10 Aug</td>
-                            <td><span class="status-badge status-submitted">Submitted</span></td>
                         </tr>
                     </tbody>
                 </table>
@@ -320,6 +452,131 @@
         let performanceChart = null;
         let customStartDate = null;
         let customEndDate = null;
+        let currentCompany = '{{ session.get("company_mode", "windsor") }}';
+
+        // Company switching function with theme updates
+        async function switchCompany() {
+            const selector = document.getElementById('company-selector');
+            const newCompany = selector.value;
+            
+            if (newCompany === currentCompany) return;
+            
+            // Map selector values to display names and themes
+            const COMPANY_MAP = {
+                windsor: { 
+                    indicator: 'Windsor', 
+                    suite: 'WinSuite',
+                    logo: 'White_and_teal_on_blue_2.png',
+                    theme: false
+                },
+                cnc: { 
+                    indicator: 'C&C', 
+                    suite: 'CSuite',
+                    logo: 'CnC.png',
+                    theme: true
+                }
+            };
+
+            try {
+                const response = await fetch('/api/set-company', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ company: newCompany })
+                });
+
+                if (response.ok) {
+                    currentCompany = newCompany;
+                    const config = COMPANY_MAP[newCompany];
+
+                    // Update theme class
+                    if (config.theme) {
+                        document.body.classList.add('cnc-theme');
+                    } else {
+                        document.body.classList.remove('cnc-theme');
+                    }
+
+                    // Update the company indicator
+                    const indicatorEl = document.getElementById('company-indicator');
+                    if (indicatorEl) indicatorEl.textContent = config.indicator;
+
+                    // Update the suite name
+                    const suiteEl = document.getElementById('suite-name');
+                    if (suiteEl) suiteEl.textContent = config.suite;
+
+                    // Update the logo
+                    const logoEl = document.getElementById('company-logo');
+                    if (logoEl) {
+                        logoEl.src = `/static/images/${config.logo}`;
+                        logoEl.alt = `${config.indicator} logo`;
+                        
+                        // Update logo classes
+                        if (config.theme) {
+                            logoEl.classList.add('cnc-logo');
+                        } else {
+                            logoEl.classList.remove('cnc-logo');
+                        }
+                    }
+
+                    // Update case type filter options
+                    updateCaseTypeFilter();
+
+                    // Reload all data
+                    loadDashboardData();
+                    loadUserGoalData();
+                    loadTeamData();
+                    loadUserCases();
+                    updateChart();
+                } else {
+                    console.error('Failed to switch company');
+                    selector.value = currentCompany; // Revert selection
+                }
+            } catch (error) {
+                console.error('Error switching company:', error);
+                selector.value = currentCompany; // Revert selection
+            }
+        }
+
+        // Update case type filter based on current company
+        function updateCaseTypeFilter() {
+            const caseTypeFilter = document.getElementById('case-type-filter');
+            const currentValue = caseTypeFilter.value;
+            
+            // Clear existing options except "All Case Types"
+            caseTypeFilter.innerHTML = '<option value="all">All Case Types</option>';
+            
+            // Add company-specific case types
+            let caseTypes = [];
+            if (currentCompany === 'windsor') {
+                caseTypes = [
+                    'Residential Mortgage (Including BTL)',
+                    'Personal Insurance (Including GI)',
+                    'Product Transfer'
+                ];
+            } else if (currentCompany === 'cnc') {
+                caseTypes = [
+                    'Bridging or Development',
+                    'Commercial',
+                    '2nd Charge - Regulated',
+                    '2nd Charge - Unregulated',
+                    'Development',
+                    'Business Loan'
+                ];
+            }
+            
+            caseTypes.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type;
+                caseTypeFilter.appendChild(option);
+            });
+            
+            // Restore previous selection if it still exists
+            if (Array.from(caseTypeFilter.options).some(opt => opt.value === currentValue)) {
+                caseTypeFilter.value = currentValue;
+            } else {
+                caseTypeFilter.value = 'all';
+            }
+        }
 
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
@@ -331,8 +588,9 @@
             }
             
             setupEventListeners();
+            updateCaseTypeFilter(); // Set up initial case type options
             loadDashboardData();
-            loadUserGoalData();  // Add this new function call
+            loadUserGoalData();
             loadTeamData();
             loadUserCases();
             initializeChart();
@@ -340,7 +598,7 @@
             // Auto-refresh every minute
             setInterval(() => {
                 loadDashboardData();
-                loadUserGoalData();  // Add this to auto-refresh
+                loadUserGoalData();
                 loadTeamData();
                 loadUserCases();
                 updateChart();
@@ -824,9 +1082,6 @@
         function refreshCases() {
             loadUserCases();
         }
-
-        // Test function for scrolling
-        
     </script>
 </body>
 </html>

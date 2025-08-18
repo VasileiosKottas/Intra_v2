@@ -16,34 +16,26 @@
             background: linear-gradient(135deg, #ffffff 0%, #ffffff 100%);
             min-height: 100vh;
             display: flex;
-            flex-direction: column;
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #122747, #122747);
-            color: white;
-            padding: 1rem 2rem;
-            text-align: center;
-        }
-        
-        .header h1 {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 1.5rem;
-        }
-        
-        .header h1::before {
-            content: "📊";
-            font-size: 1.2em;
-        }
-        
-        .main-container {
-            flex: 1;
-            display: flex;
             justify-content: center;
             align-items: center;
             padding: 2rem;
+        }
+        
+        .main-container {
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .welcome-title {
+            text-align: center;
+            font-size: 2.5rem;
+            color: #2c3e50;
+            margin-bottom: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #000000 0%, #000000 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
         
         .login-card {
@@ -52,7 +44,6 @@
             padding: 2rem;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             width: 100%;
-            max-width: 400px;
             text-align: center;
         }
         
@@ -207,40 +198,25 @@
         }
         
         @media (max-width: 480px) {
-            .main-container {
+            body {
                 padding: 1rem;
+            }
+            
+            .welcome-title {
+                font-size: 2rem;
+                margin-bottom: 1.5rem;
             }
             
             .login-card {
                 padding: 1.5rem;
             }
         }
-        .header h1 { 
-            display: flex; 
-            align-items: center; 
-            gap: 0.5rem; 
-            }
-
-            /* remove the old emoji if you had one */
-            .header h1::before { content: none; }
-
-            .logo {
-            height: 36px;   /* tweak to taste */
-            width: auto;
-            display: block;
-            }
     </style>
 </head>
 <body>
-    <div class="header">
-    <h1>
-        <img src="{{ url_for('static', filename='images/White_and_teal_on_blue_2.png') }}"
-            alt="The House of Windsor logo" class="logo">
-        WinSuite
-    </h1>
-    </div>
-
     <div class="main-container">
+        <h1 class="welcome-title">Welcome to the Suites</h1>
+        
         <div class="login-card">
             <div class="login-icon">👤</div>
             <h2 class="login-title">Sign In</h2>

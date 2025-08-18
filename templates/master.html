@@ -36,6 +36,38 @@
             font-size: 1.2em;
         }
         
+        .company-selector {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            padding: 0.5rem;
+            color: white;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-right: 1rem;
+        }
+        
+        .company-selector:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        
+        .company-selector option {
+            background: #2c3e50;
+            color: white;
+        }
+        
+        .company-indicator {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 0.5rem;
+            display: inline-block;
+        }
+        
         .user-info {
             display: flex;
             align-items: center;
@@ -359,13 +391,22 @@
                 gap: 1rem;
                 align-items: flex-start;
             }
+            
+            .company-selector {
+                margin-right: 0.5rem;
+                font-size: 0.85rem;
+            }
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>WinSuite Master</h1>
+        <h1>WinSuite Master <span class="company-indicator" id="company-indicator">{{ company_config.name }}</span></h1>
         <div class="user-info">
+            <select id="company-selector" class="company-selector" onchange="switchCompany()">
+                <option value="windsor" {{ 'selected' if session.get('company_mode', 'windsor') == 'windsor' else '' }}>Windsor</option>
+                <option value="cnc" {{ 'selected' if session.get('company_mode', 'windsor') == 'cnc' else '' }}>CnC</option>
+            </select>
             <span>Welcome, Master Administrator!</span>
             <a href="/logout" class="logout-btn">Logout</a>
         </div>
@@ -375,7 +416,7 @@
         <div class="dashboard-header">
             <div>
                 <h2 class="dashboard-title">👑 Master Dashboard</h2>
-                <p style="color: #7f8c8d; margin-top: 0.5rem;">Company-wide overview and team management</p>
+                <p style="color: #7f8c8d; margin-top: 0.5rem;">Company-wide overview and team management for {{ company_config.name }}</p>
             </div>
             <div class="action-buttons">
                 <button class="action-btn btn-primary" onclick="openCreateTeamModal()">
@@ -434,7 +475,7 @@
                 {% if not teams %}
                 <div style="text-align: center; padding: 2rem; color: #7f8c8d;">
                     <div style="font-size: 3rem; margin-bottom: 1rem;">🏢</div>
-                    <p>No teams created yet. Click "Create Team" to get started.</p>
+                    <p>No teams created yet for {{ company_config.name }}. Click "Create Team" to get started.</p>
                 </div>
                 {% endif %}
             </div>
@@ -560,6 +601,40 @@
     </div>
 
     <script>
+        let currentCompany = '{{ session.get("company_mode", "windsor") }}';
+
+        // Company switching function
+        async function switchCompany() {
+            const selector = document.getElementById('company-selector');
+            const newCompany = selector.value;
+            
+            if (newCompany === currentCompany) return;
+            
+            try {
+                const response = await fetch('/api/set-company', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ company: newCompany })
+                });
+                
+                if (response.ok) {
+                    currentCompany = newCompany;
+                    document.getElementById('company-indicator').textContent = newCompany.toUpperCase();
+                    
+                    // Reload the page to show data for the new company
+                    window.location.reload();
+                } else {
+                    console.error('Failed to switch company');
+                    selector.value = currentCompany; // Revert selection
+                }
+            } catch (error) {
+                console.error('Error switching company:', error);
+                selector.value = currentCompany; // Revert selection
+            }
+        }
+
         // Modal management
         function openCreateTeamModal() {
             document.getElementById('createTeamModal').style.display = 'block';
@@ -599,7 +674,8 @@
                 if (response.ok) {
                     location.reload();
                 } else {
-                    alert('Error creating team');
+                    const errorData = await response.json();
+                    alert('Error creating team: ' + (errorData.error || 'Unknown error'));
                 }
             } catch (error) {
                 alert('Error creating team: ' + error.message);
@@ -624,7 +700,8 @@
                 if (response.ok) {
                     location.reload();
                 } else {
-                    alert('Error assigning to team');
+                    const errorData = await response.json();
+                    alert('Error assigning to team: ' + (errorData.error || 'Unknown error'));
                 }
             } catch (error) {
                 alert('Error assigning to team: ' + error.message);
@@ -648,7 +725,8 @@
                     if (response.ok) {
                         location.reload();
                     } else {
-                        alert('Error unassigning from team');
+                        const errorData = await response.json();
+                        alert('Error unassigning from team: ' + (errorData.error || 'Unknown error'));
                     }
                 } catch (error) {
                     alert('Error: ' + error.message);
@@ -678,7 +756,8 @@
                     if (response.ok) {
                         location.reload();
                     } else {
-                        alert('Error assigning to team');
+                        const errorData = await response.json();
+                        alert('Error assigning to team: ' + (errorData.error || 'Unknown error'));
                     }
                 } catch (error) {
                     alert('Error: ' + error.message);
@@ -688,7 +767,7 @@
 
         // Sync data
         async function syncData() {
-            const confirmSync = confirm('This will sync all data from JotForm. Continue?');
+            const confirmSync = confirm(`This will sync all data from JotForm for ${currentCompany.toUpperCase()}. Continue?`);
             if (!confirmSync) return;
             
             try {
@@ -700,14 +779,27 @@
                 });
                 
                 if (response.ok) {
-                    alert('Data sync completed successfully!');
+                    const result = await response.json();
+                    alert('Data sync completed successfully for ' + currentCompany.toUpperCase() + '!');
                 } else {
-                    alert('Error syncing data');
+                    const errorData = await response.json();
+                    alert('Error syncing data: ' + (errorData.error || 'Unknown error'));
                 }
             } catch (error) {
                 alert('Error syncing data: ' + error.message);
             }
         }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Update company indicator
+            const companySelect = document.getElementById('company-selector');
+            const companyIndicator = document.getElementById('company-indicator');
+            
+            if (companySelect.value) {
+                companyIndicator.textContent = companySelect.value.toUpperCase();
+            }
+        });
     </script>
 </body>
 </html>
