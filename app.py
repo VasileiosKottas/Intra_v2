@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Sales Dashboard System - FINAL VERSION with Bug Fixes and Company Mode Toggle
+Sales Dashboard System - ENHANCED VERSION with Shared Advisors and Team Management
 Main application with automatic sync and fixed name matching
-Now supports both Windsor and CnC company modes
+Now supports shared advisors between Windsor and CnC companies
+Added: Team editing, deletion, and company-specific dashboard viewing
 """
 
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
@@ -224,7 +225,19 @@ def backfill_advisor_links(advisor):
 
     db.session.commit()
 
-# Database Models (same as before, but now with company field)
+# Enhanced Database Models with many-to-many relationship for advisors and teams
+class AdvisorTeam(db.Model):
+    __tablename__ = 'advisor_teams'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    advisor_id = db.Column(db.Integer, db.ForeignKey('advisors.id'), nullable=False)
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=False)
+    yearly_goal = db.Column(db.Float, default=0.0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Unique constraint to prevent duplicate assignments
+    __table_args__ = (db.UniqueConstraint('advisor_id', 'team_id', name='unique_advisor_team'),)
+
 class Advisor(db.Model):
     __tablename__ = 'advisors'
     
@@ -234,14 +247,27 @@ class Advisor(db.Model):
     email = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     is_master = db.Column(db.Boolean, default=False)
-    team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True)
-    yearly_goal = db.Column(db.Float, default=0.0)
-    company = db.Column(db.String(50), default='windsor')
+    # Remove company field - advisors are now shared
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    team = db.relationship('Team', foreign_keys=[team_id], backref='members')
+    # Many-to-many relationship with teams
+    team_memberships = db.relationship('AdvisorTeam', backref='advisor', cascade='all, delete-orphan')
     submissions = db.relationship('Submission', backref='advisor')
     paid_cases = db.relationship('PaidCase', backref='advisor')
+    
+    def get_team_for_company(self, company):
+        """Get the team for a specific company"""
+        for membership in self.team_memberships:
+            if membership.team.company == company:
+                return membership.team
+        return None
+    
+    def get_yearly_goal_for_company(self, company):
+        """Get yearly goal for a specific company"""
+        for membership in self.team_memberships:
+            if membership.team.company == company:
+                return membership.yearly_goal
+        return 0.0
 
 class Team(db.Model):
     __tablename__ = 'teams'
@@ -250,10 +276,18 @@ class Team(db.Model):
     name = db.Column(db.String(100), nullable=False)
     monthly_goal = db.Column(db.Float, default=0.0)
     created_by = db.Column(db.Integer, db.ForeignKey('advisors.id'), nullable=False)
-    company = db.Column(db.String(50), default='windsor')
+    company = db.Column(db.String(50), default='windsor')  # Keep company for teams
+    is_hidden = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     creator = db.relationship('Advisor', foreign_keys=[created_by], post_update=True)
+    # Many-to-many relationship with advisors
+    advisor_memberships = db.relationship('AdvisorTeam', backref='team', cascade='all, delete-orphan')
+    
+    @property
+    def members(self):
+        """Get all advisors in this team"""
+        return [membership.advisor for membership in self.advisor_memberships]
 
 class Submission(db.Model):
     __tablename__ = 'submissions'
@@ -589,8 +623,7 @@ class AutoSyncManager:
                         existing = Submission.query.filter_by(jotform_id=submission_data['jotform_id']).first()
                         if not existing:
                             advisor = Advisor.query.filter_by(
-                                full_name=submission_data['advisor_name'],
-                                company=company
+                                full_name=submission_data['advisor_name']
                             ).first()
                             
                             submission = Submission(
@@ -620,8 +653,7 @@ class AutoSyncManager:
                         existing = PaidCase.query.filter_by(jotform_id=case_data['jotform_id']).first()
                         if not existing:
                             advisor = Advisor.query.filter_by(
-                                full_name=case_data['advisor_name'],
-                                company=company
+                                full_name=case_data['advisor_name']
                             ).first()
                             
                             paid_case = PaidCase(
@@ -731,6 +763,22 @@ def master_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+# Helper function to get team data excluding hidden teams for regular users
+def get_visible_team_members(user, current_company):
+    """Get team members excluding those in hidden teams for regular users"""
+    user_team = user.get_team_for_company(current_company)
+    
+    if user.is_master:
+        # Masters can see all team members
+        return user_team.members if user_team else []
+    
+    if not user_team or user_team.is_hidden:
+        # If user is in a hidden team or no team, they only see themselves
+        return [user]
+    
+    # Regular team members see all non-hidden team members
+    return [member for member in user_team.members if not member.get_team_for_company(current_company) or not member.get_team_for_company(current_company).is_hidden]
+
 # Company switching endpoint
 @app.route('/api/set-company', methods=['POST'])
 @login_required
@@ -770,7 +818,7 @@ def master_dashboard():
     
     current_company = get_current_company()
     teams = Team.query.filter_by(company=current_company).all()
-    advisors = Advisor.query.filter_by(is_master=False, company=current_company).all()
+    advisors = Advisor.query.filter_by(is_master=False).all()  # Show all advisors
     all_advisor_names = get_available_advisors()
     recent_syncs = SyncLog.query.filter_by(company=current_company).order_by(SyncLog.sync_time.desc()).limit(10).all()
     
@@ -783,6 +831,23 @@ def master_dashboard():
                          recent_syncs=recent_syncs,
                          company_config=company_config)
 
+# Master view of advisor dashboard - respects company selection
+@app.route('/master/advisor/<int:advisor_id>')
+@master_required
+def view_advisor_dashboard(advisor_id):
+    """Master can view any advisor's dashboard for the selected company"""
+    advisor = db.session.get(Advisor, advisor_id)
+    if not advisor:
+        return "Advisor not found", 404
+    
+    current_company = get_current_company()
+    company_config = get_company_config()
+    return render_template('advisor_view.html', 
+                         advisor=advisor, 
+                         company_config=company_config,
+                         is_master_view=True,
+                         current_company=current_company)
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -793,7 +858,7 @@ def login():
         
         if user and check_password_hash(user.password_hash, password):
             session['user_id'] = user.id
-            session['company_mode'] = user.company
+            session['company_mode'] = 'windsor'  # Default to windsor
             return redirect(url_for('dashboard'))
         else:
             return render_template('login.html', error='Invalid credentials')
@@ -819,8 +884,7 @@ def register():
             username=username,
             email=email,
             password_hash=generate_password_hash(password),
-            is_master=False,
-            company='windsor'
+            is_master=False
         )
         
         db.session.add(user)
@@ -915,6 +979,83 @@ def get_dashboard_data():
         'company': current_company
     })
 
+# API endpoint for master to get advisor dashboard data
+@app.route('/api/advisor-dashboard-data/<int:advisor_id>')
+@master_required
+def get_advisor_dashboard_data(advisor_id):
+    """Get dashboard data for a specific advisor (master only)"""
+    advisor = db.session.get(Advisor, advisor_id)
+    if not advisor:
+        return jsonify({'error': 'Advisor not found'}), 404
+    
+    current_company = get_current_company()
+    valid_business_types = get_valid_business_types()
+    valid_paid_case_types = get_valid_paid_case_types()
+    
+    start_date, end_date = resolve_period_dates()
+    
+    # Get submissions for this advisor
+    all_submissions = Submission.query.filter(
+        and_(
+            Submission.submission_date >= start_date,
+            Submission.submission_date <= end_date,
+            Submission.company == current_company,
+            or_(
+                Submission.advisor_id == advisor.id,
+                and_(Submission.advisor_id.is_(None), Submission.advisor_name == advisor.full_name)
+            )
+        )
+    ).all()
+    
+    submissions = [s for s in all_submissions if s.business_type in valid_business_types]
+    referrals = [s for s in all_submissions if s.business_type.startswith('Referral')]
+    
+    # Get paid cases
+    paid_cases = PaidCase.query.filter(
+        and_(
+            PaidCase.date_paid >= start_date,
+            PaidCase.date_paid <= end_date,
+            PaidCase.company == current_company,
+            PaidCase.case_type.in_(valid_paid_case_types),
+            or_(
+                PaidCase.advisor_id == advisor.id,
+                and_(PaidCase.advisor_id.is_(None), PaidCase.advisor_name == advisor.full_name)
+            )
+        )
+    ).all()
+    
+    # Calculate totals
+    total_submitted = sum(s.expected_proc or 0 for s in submissions)
+    total_fee = sum(s.expected_fee or 0 for s in submissions)
+    total_paid = sum(p.value for p in paid_cases)
+    
+    # Applications count
+    applications = {}
+    for submission in submissions:
+        if submission.business_type not in applications:
+            applications[submission.business_type] = 0
+        applications[submission.business_type] += 1
+    
+    # Count referrals
+    referrals_made = len(referrals)
+    referrals_received = 0
+    if advisor.full_name.lower() in ['steven horn', 'daniel jones']:
+        referrals_received = len([r for r in all_submissions 
+                                if r.business_type and ('steve' in r.business_type.lower() or 'daniel' in r.business_type.lower())])
+    
+    return jsonify({
+        'total_submitted': total_submitted,
+        'total_fee': total_fee,
+        'combined_total': total_submitted + total_fee,
+        'total_paid': total_paid,
+        'payment_percentage': (total_paid / (total_submitted + total_fee) * 100) if (total_submitted + total_fee) > 0 else 0,
+        'applications': applications,
+        'referrals_made': referrals_made,
+        'referrals_received': referrals_received,
+        'company': current_company,
+        'advisor_name': advisor.full_name
+    })
+
 @app.route('/api/user-cases')
 @login_required
 def get_user_cases():
@@ -987,20 +1128,99 @@ def get_user_cases():
             } for p in cases
         ])
 
-@app.route('/api/team-data')
-@login_required
-def get_team_data():
-    user = Advisor.query.get(session['user_id'])
-    if not user or not user.team:
-        return jsonify({'no_team': True})
+# API endpoint for master to get advisor cases
+@app.route('/api/advisor-cases/<int:advisor_id>')
+@master_required
+def get_advisor_cases(advisor_id):
+    """Get cases for a specific advisor (master only)"""
+    advisor = db.session.get(Advisor, advisor_id)
+    if not advisor:
+        return jsonify([])
 
     current_company = get_current_company()
     valid_business_types = get_valid_business_types()
     valid_paid_case_types = get_valid_paid_case_types()
+    
+    case_type_filter = request.args.get('case_type', 'all')
+    data_type = request.args.get('data_type', 'submitted')
     start_date, end_date = resolve_period_dates()
 
+    if data_type == 'submitted':
+        all_submissions = Submission.query.filter(
+            and_(
+                Submission.submission_date >= start_date,
+                Submission.submission_date <= end_date,
+                Submission.company == current_company,
+                or_(
+                    Submission.advisor_id == advisor.id,
+                    and_(Submission.advisor_id.is_(None), Submission.advisor_name == advisor.full_name)
+                )
+            )
+        ).order_by(Submission.submission_date.desc()).all()
+        
+        if case_type_filter == 'all':
+            cases = [s for s in all_submissions if s.business_type in valid_business_types]
+        else:
+            cases = [s for s in all_submissions if s.business_type == case_type_filter]
+
+        return jsonify([
+            {
+                'customer_name': s.customer_name,
+                'case_type': s.business_type,
+                'fee_submitted': float((s.expected_fee or 0) + (s.expected_proc or 0)),
+                'payment_status': 'Pending',
+                'date': s.submission_date.strftime('%d %b'),
+                'data_type': 'Submitted'
+            } for s in cases
+        ])
+    else:
+        query = PaidCase.query.filter(
+            and_(
+                PaidCase.date_paid >= start_date,
+                PaidCase.date_paid <= end_date,
+                PaidCase.company == current_company,
+                PaidCase.case_type.in_(valid_paid_case_types),
+                or_(
+                    PaidCase.advisor_id == advisor.id,
+                    and_(PaidCase.advisor_id.is_(None), PaidCase.advisor_name == advisor.full_name)
+                )
+            )
+        )
+        if case_type_filter != 'all':
+            query = query.filter(PaidCase.case_type == case_type_filter)
+
+        cases = query.order_by(PaidCase.date_paid.desc()).all()
+
+        return jsonify([
+            {
+                'customer_name': p.customer_name or 'Unknown Customer',
+                'case_type': p.case_type,
+                'fee_submitted': float(p.value or 0),
+                'payment_status': 'Paid',
+                'date': p.date_paid.strftime('%d %b'),
+                'data_type': 'Paid'
+            } for p in cases
+        ])
+
+@app.route('/api/team-data')
+@login_required
+def get_team_data():
+    user = db.session.get(Advisor, session['user_id'])
+    current_company = get_current_company()
+    user_team = user.get_team_for_company(current_company)
+    
+    if not user_team:
+        return jsonify({'no_team': True})
+
+    valid_business_types = get_valid_business_types()
+    valid_paid_case_types = get_valid_paid_case_types()
+    start_date, end_date = resolve_period_dates()
+
+    # Get visible team members (excludes hidden team members for regular users)
+    visible_members = get_visible_team_members(user, current_company)
+    
     team_members = []
-    for member in user.team.members:
+    for member in visible_members:
         all_submissions = Submission.query.filter(
             and_(
                 Submission.submission_date >= start_date,
@@ -1031,7 +1251,8 @@ def get_team_data():
         total_submitted = sum((s.expected_proc or 0) + (s.expected_fee or 0) for s in submissions)
         total_paid = sum((p.value or 0) for p in paid_cases)
         avg_case_size = (total_paid / len(paid_cases)) if paid_cases else 0.0
-        goal_progress = (total_submitted / member.yearly_goal * 100) if (member.yearly_goal or 0) > 0 else 0.0
+        yearly_goal = member.get_yearly_goal_for_company(current_company)
+        goal_progress = (total_submitted / yearly_goal * 100) if yearly_goal > 0 else 0.0
 
         team_members.append({
             'name': member.full_name,
@@ -1048,7 +1269,7 @@ def get_team_data():
     current_month_start = today.replace(day=1)
     
     all_team_submissions = []
-    for member in user.team.members:
+    for member in visible_members:
         member_submissions = Submission.query.filter(
             and_(
                 Submission.submission_date >= current_month_start,
@@ -1064,20 +1285,127 @@ def get_team_data():
     
     team_monthly_submissions = [s for s in all_team_submissions if s.business_type in valid_business_types]
     team_monthly_total = sum((s.expected_proc or 0) + (s.expected_fee or 0) for s in team_monthly_submissions)
-    team_goal = float(user.team.monthly_goal or 0.0)
-    team_progress = (team_monthly_total / team_goal * 100) if team_goal > 0 else 0.0
+    
+    # For hidden teams, don't show team goals to regular members
+    if user_team.is_hidden and not user.is_master:
+        team_goal = 0.0
+        team_progress = 0.0
+    else:
+        team_goal = float(user_team.monthly_goal or 0.0)
+        team_progress = (team_monthly_total / team_goal * 100) if team_goal > 0 else 0.0
+    
     days_left = max(0, calendar.monthrange(today.year, today.month)[1] - today.day)
     total_paid_team = sum(m['total_paid'] for m in team_members)
 
     return jsonify({
-        'team_name': user.team.name,
+        'team_name': user_team.name if not user_team.is_hidden or user.is_master else 'Personal Goals',
         'team_members': team_members,
         'team_progress': team_progress,
         'team_monthly_total': team_monthly_total,
         'team_monthly_goal': team_goal,
         'days_left': days_left,
         'total_paid': total_paid_team,
-        'company': current_company
+        'company': current_company,
+        'is_hidden_team': user_team.is_hidden if user_team else False
+    })
+
+# API endpoint for master to get advisor team data
+@app.route('/api/advisor-team-data/<int:advisor_id>')
+@master_required
+def get_advisor_team_data(advisor_id):
+    """Get team data for a specific advisor (master only)"""
+    advisor = db.session.get(Advisor, advisor_id)
+    current_company = get_current_company()
+    advisor_team = advisor.get_team_for_company(current_company) if advisor else None
+    
+    if not advisor or not advisor_team:
+        return jsonify({'no_team': True})
+    
+    valid_business_types = get_valid_business_types()
+    valid_paid_case_types = get_valid_paid_case_types()
+    start_date, end_date = resolve_period_dates()
+
+    team_members = []
+    for member in advisor_team.members:
+        all_submissions = Submission.query.filter(
+            and_(
+                Submission.submission_date >= start_date,
+                Submission.submission_date <= end_date,
+                Submission.company == current_company,
+                or_(
+                    Submission.advisor_id == member.id,
+                    and_(Submission.advisor_id.is_(None), Submission.advisor_name == member.full_name)
+                )
+            )
+        ).all()
+        
+        submissions = [s for s in all_submissions if s.business_type in valid_business_types]
+
+        paid_cases = PaidCase.query.filter(
+            and_(
+                PaidCase.date_paid >= start_date,
+                PaidCase.date_paid <= end_date,
+                PaidCase.company == current_company,
+                PaidCase.case_type.in_(valid_paid_case_types),
+                or_(
+                    PaidCase.advisor_id == member.id,
+                    and_(PaidCase.advisor_id.is_(None), PaidCase.advisor_name == member.full_name)
+                )
+            )
+        ).all()
+        
+        total_submitted = sum((s.expected_proc or 0) + (s.expected_fee or 0) for s in submissions)
+        total_paid = sum((p.value or 0) for p in paid_cases)
+        avg_case_size = (total_paid / len(paid_cases)) if paid_cases else 0.0
+        yearly_goal = member.get_yearly_goal_for_company(current_company)
+        goal_progress = (total_submitted / yearly_goal * 100) if yearly_goal > 0 else 0.0
+
+        team_members.append({
+            'name': member.full_name,
+            'total_submitted': total_submitted,
+            'total_paid': total_paid,
+            'avg_case_size': avg_case_size,
+            'goal_progress': goal_progress
+        })
+
+    team_members.sort(key=lambda m: m['total_submitted'], reverse=True)
+
+    # Team monthly goal (always current month)
+    today = datetime.now().date()
+    current_month_start = today.replace(day=1)
+    
+    all_team_submissions = []
+    for member in advisor_team.members:
+        member_submissions = Submission.query.filter(
+            and_(
+                Submission.submission_date >= current_month_start,
+                Submission.submission_date <= today,
+                Submission.company == current_company,
+                or_(
+                    Submission.advisor_id == member.id,
+                    and_(Submission.advisor_id.is_(None), Submission.advisor_name == member.full_name)
+                )
+            )
+        ).all()
+        all_team_submissions.extend(member_submissions)
+    
+    team_monthly_submissions = [s for s in all_team_submissions if s.business_type in valid_business_types]
+    team_monthly_total = sum((s.expected_proc or 0) + (s.expected_fee or 0) for s in team_monthly_submissions)
+    team_goal = float(advisor_team.monthly_goal or 0.0)
+    team_progress = (team_monthly_total / team_goal * 100) if team_goal > 0 else 0.0
+    days_left = max(0, calendar.monthrange(today.year, today.month)[1] - today.day)
+    total_paid_team = sum(m['total_paid'] for m in team_members)
+
+    return jsonify({
+        'team_name': advisor_team.name,
+        'team_members': team_members,
+        'team_progress': team_progress,
+        'team_monthly_total': team_monthly_total,
+        'team_monthly_goal': team_goal,
+        'days_left': days_left,
+        'total_paid': total_paid_team,
+        'company': current_company,
+        'is_hidden_team': advisor_team.is_hidden
     })
 
 @app.route('/api/performance-timeline')
@@ -1148,6 +1476,76 @@ def get_performance_timeline():
 
     return jsonify(series)
 
+# API endpoint for master to get advisor performance timeline
+@app.route('/api/advisor-performance-timeline/<int:advisor_id>')
+@master_required
+def get_advisor_performance_timeline(advisor_id):
+    """Get performance timeline for a specific advisor (master only)"""
+    advisor = db.session.get(Advisor, advisor_id)
+    if not advisor:
+        return jsonify([])
+
+    current_company = get_current_company()
+    valid_business_types = get_valid_business_types()
+    valid_paid_case_types = get_valid_paid_case_types()
+    
+    metric_type = request.args.get('type', 'submitted')
+    start_date, end_date = resolve_period_dates()
+
+    # Get submissions and paid cases
+    all_submissions = Submission.query.filter(
+        and_(
+            Submission.submission_date >= start_date,
+            Submission.submission_date <= end_date,
+            Submission.company == current_company,
+            or_(
+                Submission.advisor_id == advisor.id,
+                and_(Submission.advisor_id.is_(None), Submission.advisor_name == advisor.full_name)
+            )
+        )
+    ).all()
+    
+    submissions = [s for s in all_submissions if s.business_type in valid_business_types]
+
+    paids = PaidCase.query.filter(
+        and_(
+            PaidCase.date_paid >= start_date,
+            PaidCase.date_paid <= end_date,
+            PaidCase.company == current_company,
+            PaidCase.case_type.in_(valid_paid_case_types),
+            or_(
+                PaidCase.advisor_id == advisor.id,
+                and_(PaidCase.advisor_id.is_(None), PaidCase.advisor_name == advisor.full_name)
+            )
+        )
+    ).all()
+
+    # Index by date
+    subs_by_date = {}
+    for s in submissions:
+        d = s.submission_date
+        subs_by_date[d] = subs_by_date.get(d, 0.0) + float((s.expected_proc or 0) + (s.expected_fee or 0))
+
+    paid_by_date = {}
+    for p in paids:
+        d = p.date_paid
+        paid_by_date[d] = paid_by_date.get(d, 0.0) + float(p.value or 0)
+
+    # Build cumulative series
+    day = start_date
+    running = 0.0
+    series = []
+    while day <= end_date:
+        added = subs_by_date.get(day, 0.0) if metric_type == 'submitted' else paid_by_date.get(day, 0.0)
+        running += added
+        series.append({
+            'date': day.strftime('%Y-%m-%d'),
+            'value': round(running, 2)
+        })
+        day += timedelta(days=1)
+
+    return jsonify(series)
+
 @app.route('/api/user-goal-data')
 @login_required
 def get_user_goal_data():
@@ -1177,7 +1575,7 @@ def get_user_goal_data():
     
     valid_yearly_submissions = [s for s in all_yearly_submissions if s.business_type in valid_business_types]
     user_yearly_total = sum((s.expected_proc or 0) + (s.expected_fee or 0) for s in valid_yearly_submissions)
-    user_yearly_goal = float(user.yearly_goal or 50000.0)
+    user_yearly_goal = user.get_yearly_goal_for_company(current_company) or 50000.0
     user_yearly_progress = (user_yearly_total / user_yearly_goal * 100) if user_yearly_goal > 0 else 0.0
     user_yearly_remaining = max(0, user_yearly_goal - user_yearly_total)
     
@@ -1194,6 +1592,54 @@ def get_user_goal_data():
         'company': current_company
     })
 
+# API endpoint for master to get advisor goal data
+@app.route('/api/advisor-goal-data/<int:advisor_id>')
+@master_required
+def get_advisor_goal_data(advisor_id):
+    """Get advisor's yearly goal progress (master only)"""
+    advisor = db.session.get(Advisor, advisor_id)
+    if not advisor:
+        return jsonify({'error': 'Advisor not found'}), 404
+    
+    current_company = get_current_company()
+    valid_business_types = get_valid_business_types()
+    
+    today = datetime.now().date()
+    current_year_start = datetime(today.year, 1, 1).date()
+    
+    # Get yearly submissions
+    all_yearly_submissions = Submission.query.filter(
+        and_(
+            Submission.submission_date >= current_year_start,
+            Submission.submission_date <= today,
+            Submission.company == current_company,
+            or_(
+                Submission.advisor_id == advisor.id,
+                and_(Submission.advisor_id.is_(None), Submission.advisor_name == advisor.full_name)
+            )
+        )
+    ).all()
+    
+    valid_yearly_submissions = [s for s in all_yearly_submissions if s.business_type in valid_business_types]
+    advisor_yearly_total = sum((s.expected_proc or 0) + (s.expected_fee or 0) for s in valid_yearly_submissions)
+    advisor_yearly_goal = advisor.get_yearly_goal_for_company(current_company) or 50000.0
+    advisor_yearly_progress = (advisor_yearly_total / advisor_yearly_goal * 100) if advisor_yearly_goal > 0 else 0.0
+    advisor_yearly_remaining = max(0, advisor_yearly_goal - advisor_yearly_total)
+    
+    year_end = datetime(today.year, 12, 31).date()
+    days_left_year = (year_end - today).days
+    
+    return jsonify({
+        'user_yearly_total': advisor_yearly_total,
+        'user_yearly_goal': advisor_yearly_goal,
+        'user_yearly_progress': advisor_yearly_progress,
+        'user_yearly_remaining': advisor_yearly_remaining,
+        'days_left_year': days_left_year,
+        'submissions_count': len(valid_yearly_submissions),
+        'company': current_company,
+        'advisor_name': advisor.full_name
+    })
+
 # Master API Routes
 @app.route('/api/create-team', methods=['POST'])
 @master_required
@@ -1205,11 +1651,68 @@ def create_team():
         name=data['name'],
         monthly_goal=float(data.get('monthly_goal', 0)),
         created_by=session['user_id'],
-        company=current_company
+        company=current_company,
+        is_hidden=data.get('is_hidden', False)
     )
     db.session.add(team)
     db.session.commit()
     return jsonify({'success': True, 'team_id': team.id})
+
+# NEW: Edit team endpoint
+@app.route('/api/edit-team/<int:team_id>', methods=['PUT'])
+@master_required
+def edit_team(team_id):
+    """Edit team details"""
+    data = request.get_json()
+    team = db.session.get(Team, team_id)
+    
+    if not team:
+        return jsonify({'error': 'Team not found'}), 404
+    
+    current_company = get_current_company()
+    if team.company != current_company:
+        return jsonify({'error': 'Team not in current company'}), 403
+    
+    # Update team details
+    team.name = data.get('name', team.name)
+    team.monthly_goal = float(data.get('monthly_goal', team.monthly_goal))
+    team.is_hidden = data.get('is_hidden', team.is_hidden)
+    
+    try:
+        db.session.commit()
+        return jsonify({'success': True, 'message': f'Team {team.name} updated successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to update team'}), 500
+
+# NEW: Delete team endpoint
+@app.route('/api/delete-team/<int:team_id>', methods=['DELETE'])
+@master_required
+def delete_team(team_id):
+    """Delete a team and unassign all members"""
+    team = db.session.get(Team, team_id)
+    
+    if not team:
+        return jsonify({'error': 'Team not found'}), 404
+    
+    current_company = get_current_company()
+    if team.company != current_company:
+        return jsonify({'error': 'Team not in current company'}), 403
+    
+    team_name = team.name
+    
+    try:
+        # Delete all advisor-team relationships first
+        AdvisorTeam.query.filter_by(team_id=team_id).delete()
+        
+        # Delete the team
+        db.session.delete(team)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': f'Team {team_name} deleted successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to delete team'}), 500
 
 @app.route('/api/assign-to-team', methods=['POST'])
 @master_required
@@ -1229,13 +1732,44 @@ def assign_to_team():
     if not advisor or not team:
         return jsonify({'error': 'Advisor or Team not found'}), 404
     
-    previous_team = advisor.team.name if advisor.team else None
-    advisor.team_id = team_id
-    advisor.yearly_goal = float(yearly_goal)
+    current_company = get_current_company()
+    if team.company != current_company:
+        return jsonify({'error': 'Team not in current company'}), 403
+    
+    # Check if advisor is already in this team
+    existing_membership = AdvisorTeam.query.filter_by(
+        advisor_id=advisor_id,
+        team_id=team_id
+    ).first()
+    
+    if existing_membership:
+        return jsonify({'error': 'Advisor already assigned to this team'}), 400
+    
+    # Check if advisor is already in another team for this company
+    existing_company_team = None
+    for membership in advisor.team_memberships:
+        if membership.team.company == current_company:
+            existing_company_team = membership.team
+            break
     
     try:
+        if existing_company_team:
+            # Remove from existing team in this company
+            AdvisorTeam.query.filter_by(
+                advisor_id=advisor_id,
+                team_id=existing_company_team.id
+            ).delete()
+        
+        # Add to new team
+        new_membership = AdvisorTeam(
+            advisor_id=advisor_id,
+            team_id=team_id,
+            yearly_goal=float(yearly_goal)
+        )
+        db.session.add(new_membership)
         db.session.commit()
-        message = f'Reassigned {advisor.full_name} from {previous_team} to {team.name}' if previous_team else f'Assigned {advisor.full_name} to {team.name}'
+        
+        message = f'Reassigned {advisor.full_name} from {existing_company_team.name} to {team.name}' if existing_company_team else f'Assigned {advisor.full_name} to {team.name}'
         return jsonify({'success': True, 'message': message})
     except Exception as e:
         db.session.rollback()
@@ -1244,7 +1778,7 @@ def assign_to_team():
 @app.route('/api/unassign-from-team', methods=['POST'])
 @master_required
 def unassign_from_team():
-    """Unassign an advisor from their team"""
+    """Unassign an advisor from their team in current company"""
     data = request.get_json()
     advisor_id = data.get('advisor_id')
     
@@ -1255,13 +1789,21 @@ def unassign_from_team():
     if not advisor:
         return jsonify({'error': 'Advisor not found'}), 404
     
-    previous_team = advisor.team.name if advisor.team else None
-    advisor.team_id = None
-    advisor.yearly_goal = 0.0
+    current_company = get_current_company()
+    current_team = advisor.get_team_for_company(current_company)
+    
+    if not current_team:
+        return jsonify({'error': 'Advisor not assigned to any team in this company'}), 400
     
     try:
+        # Remove advisor from team in current company
+        AdvisorTeam.query.filter_by(
+            advisor_id=advisor_id,
+            team_id=current_team.id
+        ).delete()
+        
         db.session.commit()
-        return jsonify({'success': True, 'message': f'{advisor.full_name} unassigned from {previous_team}'})
+        return jsonify({'success': True, 'message': f'{advisor.full_name} unassigned from {current_team.name}'})
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Failed to unassign advisor'}), 500
@@ -1293,7 +1835,46 @@ def sync_status():
         })
     
     return jsonify(sync_data)
-
+@app.route('/api/update-advisor-goal', methods=['PUT'])
+@master_required
+def update_advisor_goal():
+    """Update an advisor's yearly goal for the current company"""
+    data = request.get_json()
+    advisor_id = data.get('advisor_id')
+    yearly_goal = data.get('yearly_goal')
+    company = data.get('company', get_current_company())
+    
+    if not advisor_id or yearly_goal is None:
+        return jsonify({'error': 'Advisor ID and yearly goal are required'}), 400
+    
+    advisor = db.session.get(Advisor, advisor_id)
+    if not advisor:
+        return jsonify({'error': 'Advisor not found'}), 404
+    
+    # Find the advisor's team membership for the current company
+    advisor_team_membership = None
+    for membership in advisor.team_memberships:
+        if membership.team.company == company:
+            advisor_team_membership = membership
+            break
+    
+    if not advisor_team_membership:
+        return jsonify({'error': f'Advisor not assigned to any team in {company.upper()}'}), 400
+    
+    try:
+        # Update the yearly goal
+        advisor_team_membership.yearly_goal = float(yearly_goal)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Updated {advisor.full_name}\'s yearly goal to £{yearly_goal:,.0f} for {company.upper()}'
+        })
+    except ValueError:
+        return jsonify({'error': 'Invalid yearly goal value'}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to update goal'}), 500
 @app.route('/healthz')
 def health():
     return {'ok': True}, 200
@@ -1307,8 +1888,7 @@ def create_master_user():
             username='master',
             email='master@houseofwindsor.com',
             password_hash=generate_password_hash('master123'),
-            is_master=True,
-            company='windsor'
+            is_master=True
         )
         db.session.add(master)
         db.session.commit()
@@ -1345,25 +1925,69 @@ def create_sample_data():
             username=advisor_data['username'],
             email=advisor_data['email'],
             password_hash=generate_password_hash('password123'),
-            yearly_goal=50000.0,
-            company='windsor'
+            is_master=False
         )
         db.session.add(advisor)
         created_advisors.append(advisor)
     
     db.session.commit()
     
-    team = Team(
-        name='Test Team',
+    # Create teams for both companies
+    windsor_team = Team(
+        name='Sales Team Alpha',
         monthly_goal=50000.0,
         created_by=1,
-        company='windsor'
+        company='windsor',
+        is_hidden=False
     )
-    db.session.add(team)
+    db.session.add(windsor_team)
+    
+    windsor_hidden_team = Team(
+        name='Performance Tracking',
+        monthly_goal=30000.0,
+        created_by=1,
+        company='windsor',
+        is_hidden=True
+    )
+    db.session.add(windsor_hidden_team)
+    
+    cnc_team = Team(
+        name='CnC Development Team',
+        monthly_goal=40000.0,
+        created_by=1,
+        company='cnc',
+        is_hidden=False
+    )
+    db.session.add(cnc_team)
+    
     db.session.commit()
     
-    for advisor in created_advisors[:4]:
-        advisor.team_id = team.id
+    # Assign advisors to teams using the new relationship model
+    # Windsor teams
+    for i, advisor in enumerate(created_advisors[:4]):
+        membership = AdvisorTeam(
+            advisor_id=advisor.id,
+            team_id=windsor_team.id,
+            yearly_goal=50000.0
+        )
+        db.session.add(membership)
+    
+    for advisor in created_advisors[4:7]:
+        membership = AdvisorTeam(
+            advisor_id=advisor.id,
+            team_id=windsor_hidden_team.id,
+            yearly_goal=35000.0
+        )
+        db.session.add(membership)
+    
+    # CnC teams
+    for advisor in created_advisors[7:10]:
+        membership = AdvisorTeam(
+            advisor_id=advisor.id,
+            team_id=cnc_team.id,
+            yearly_goal=45000.0
+        )
+        db.session.add(membership)
     
     db.session.commit()
     

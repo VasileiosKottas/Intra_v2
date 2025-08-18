@@ -184,6 +184,14 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .advisor-card:hover {
+            background: #e9ecef;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
         
         .advisor-info {
@@ -204,6 +212,7 @@
         .advisor-actions {
             display: flex;
             gap: 0.5rem;
+            flex-wrap: wrap;
         }
         
         .btn-sm {
@@ -216,6 +225,11 @@
             transition: all 0.3s;
         }
         
+        .btn-view {
+            background: #6c757d;
+            color: white;
+        }
+        
         .btn-assign {
             background: #3498db;
             color: white;
@@ -223,6 +237,21 @@
         
         .btn-unassign {
             background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-edit {
+            background: #f39c12;
+            color: white;
+        }
+        
+        .btn-goal {
+            background: #9b59b6;
+            color: white;
+        }
+        
+        .btn-delete {
+            background: #dc3545;
             color: white;
         }
         
@@ -254,6 +283,11 @@
             color: #004085;
         }
         
+        .status-hidden {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
         .team-card {
             background: #f8f9fa;
             border: 1px solid #dee2e6;
@@ -272,6 +306,20 @@
         .team-name {
             font-weight: 600;
             color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1;
+        }
+        
+        .team-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .hidden-team-indicator {
+            font-size: 0.8rem;
+            opacity: 0.7;
         }
         
         .team-members {
@@ -286,6 +334,12 @@
             align-items: center;
             padding: 0.25rem 0;
             font-size: 0.9rem;
+        }
+        
+        .member-actions {
+            display: flex;
+            gap: 0.25rem;
+            align-items: center;
         }
         
         .modal {
@@ -355,6 +409,18 @@
             border-color: #3498db;
         }
         
+        .form-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        .form-checkbox input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+        
         .form-buttons {
             display: flex;
             gap: 1rem;
@@ -381,6 +447,16 @@
             font-weight: 500;
         }
         
+        .goal-display {
+            background: #e8f5e8;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            font-weight: 600;
+            color: #2c5530;
+            margin-right: 0.5rem;
+            font-size: 0.8rem;
+        }
+        
         @media (max-width: 768px) {
             .content-grid {
                 grid-template-columns: 1fr;
@@ -396,12 +472,23 @@
                 margin-right: 0.5rem;
                 font-size: 0.85rem;
             }
+            
+            .advisor-actions {
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            
+            .member-actions {
+                flex-direction: column;
+                gap: 0.25rem;
+                align-items: flex-end;
+            }
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>WinSuite Master <span class="company-indicator" id="company-indicator">{{ company_config.name }}</span></h1>
+        <h1>Suite Master <span class="company-indicator" id="company-indicator">{{ company_config.name }}</span></h1>
         <div class="user-info">
             <select id="company-selector" class="company-selector" onchange="switchCompany()">
                 <option value="windsor" {{ 'selected' if session.get('company_mode', 'windsor') == 'windsor' else '' }}>Windsor</option>
@@ -415,7 +502,7 @@
     <div class="main-content">
         <div class="dashboard-header">
             <div>
-                <h2 class="dashboard-title">👑 Master Dashboard</h2>
+                <h2 class="dashboard-title">Master Dashboard</h2>
                 <p style="color: #7f8c8d; margin-top: 0.5rem;">Company-wide overview and team management for {{ company_config.name }}</p>
             </div>
             <div class="action-buttons">
@@ -441,22 +528,47 @@
                 {% for team in teams %}
                 <div class="team-card">
                     <div class="team-header">
-                        <span class="team-name">{{ team.name }}</span>
-                        <span style="color: #7f8c8d; font-size: 0.9rem;">
-                            Monthly Goal: £{{ "{:,.2f}".format(team.monthly_goal) }}
+                        <span class="team-name">
+                            {{ team.name }}
+                            {% if team.is_hidden %}
+                            <span class="hidden-team-indicator">🔒 Hidden</span>
+                            {% endif %}
                         </span>
+                        <div class="team-actions">
+                            <span style="color: #7f8c8d; font-size: 0.9rem; margin-right: 1rem;">
+                                Monthly Goal: £{{ "{:,.2f}".format(team.monthly_goal) }}
+                            </span>
+                            <button class="btn-sm btn-edit" onclick="editTeam({{ team.id }}, '{{ team.name }}', {{ team.monthly_goal }}, {{ team.is_hidden|tojson }})">
+                                ✏️ Edit
+                            </button>
+                            <button class="btn-sm btn-delete" onclick="deleteTeam({{ team.id }}, '{{ team.name }}')">
+                                🗑️ Delete
+                            </button>
+                        </div>
                     </div>
                     <div class="team-members">
                         {% for member in team.members %}
                         <div class="member-item">
                             <span>
-                                {{ member.full_name }}
+                                <a href="/master/advisor/{{ member.id }}" style="text-decoration: none; color: #2c3e50; font-weight: 500;">
+                                    {{ member.full_name }}
+                                </a>
+                                {% if team.is_hidden %}
+                                <span class="status-badge status-hidden">Hidden Team</span>
+                                {% else %}
                                 <span class="status-badge status-assigned">Team Member</span>
+                                {% endif %}
                             </span>
-                            <div>
-                                <span style="color: #7f8c8d; font-size: 0.8rem; margin-right: 0.5rem;">
-                                    Goal: £{{ "{:,.0f}".format(member.yearly_goal) }}
+                            <div class="member-actions">
+                                <span class="goal-display">
+                                    £{{ "{:,.0f}".format(member.get_yearly_goal_for_company(session.get('company_mode', 'windsor'))) }}
                                 </span>
+                                <button class="btn-sm btn-view" onclick="viewAdvisorDashboard({{ member.id }})">
+                                    👁️ View
+                                </button>
+                                <button class="btn-sm btn-goal" onclick="editAdvisorGoal({{ member.id }}, '{{ member.full_name }}', {{ member.get_yearly_goal_for_company(session.get('company_mode', 'windsor')) }})">
+                                    🎯 Goal
+                                </button>
                                 <button class="btn-sm btn-unassign" onclick="unassignFromTeam({{ member.id }}, '{{ member.full_name }}')">
                                     ✕ Unassign
                                 </button>
@@ -491,19 +603,24 @@
 
                 {% for advisor_name in all_advisor_names %}
                 {% set registered_advisor = advisors|selectattr('full_name', 'equalto', advisor_name)|first %}
-                <div class="advisor-card">
+                <div class="advisor-card" {% if registered_advisor %}onclick="viewAdvisorDashboard({{ registered_advisor.id }})"{% endif %}>
                     <div class="advisor-info">
                         <div class="advisor-name">{{ advisor_name }}</div>
                         <div class="advisor-details">
                             {% if registered_advisor %}
                                 <span class="status-badge status-registered">Registered</span>
-                                {% if registered_advisor.team %}
-                                    <span class="status-badge status-assigned">{{ registered_advisor.team.name }}</span>
-                                    <span style="margin-left: 0.5rem; color: #7f8c8d;">
-                                        Goal: £{{ "{:,.0f}".format(registered_advisor.yearly_goal) }}
+                                {% set current_team = registered_advisor.get_team_for_company(session.get('company_mode', 'windsor')) %}
+                                {% if current_team %}
+                                    {% if current_team.is_hidden %}
+                                        <span class="status-badge status-hidden">{{ current_team.name }} (Hidden)</span>
+                                    {% else %}
+                                        <span class="status-badge status-assigned">{{ current_team.name }}</span>
+                                    {% endif %}
+                                    <span class="goal-display" style="margin-left: 0.5rem;">
+                                        £{{ "{:,.0f}".format(registered_advisor.get_yearly_goal_for_company(session.get('company_mode', 'windsor'))) }}
                                     </span>
                                 {% else %}
-                                    <span style="color: #f39c12; margin-left: 0.5rem;">Unassigned</span>
+                                    <span style="color: #f39c12; margin-left: 0.5rem;">Unassigned in {{ session.get('company_mode', 'windsor').title() }}</span>
                                 {% endif %}
                             {% else %}
                                 <span class="status-badge status-unregistered">Not Registered</span>
@@ -513,15 +630,22 @@
                             {% endif %}
                         </div>
                     </div>
-                    <div class="advisor-actions">
+                    <div class="advisor-actions" onclick="event.stopPropagation();">
                         {% if registered_advisor %}
-                            {% if not registered_advisor.team %}
-                                <button class="btn-sm btn-assign" onclick="quickAssign({{ registered_advisor.id }}, '{{ registered_advisor.full_name }}')">
-                                    👥 Assign
+                            <button class="btn-sm btn-view" onclick="viewAdvisorDashboard({{ registered_advisor.id }})">
+                                👁️ View
+                            </button>
+                            {% set current_team = registered_advisor.get_team_for_company(session.get('company_mode', 'windsor')) %}
+                            {% if current_team %}
+                                <button class="btn-sm btn-goal" onclick="editAdvisorGoal({{ registered_advisor.id }}, '{{ registered_advisor.full_name }}', {{ registered_advisor.get_yearly_goal_for_company(session.get('company_mode', 'windsor')) }})">
+                                    🎯 Goal
                                 </button>
-                            {% else %}
                                 <button class="btn-sm btn-unassign" onclick="unassignFromTeam({{ registered_advisor.id }}, '{{ registered_advisor.full_name }}')">
                                     ✕ Unassign
+                                </button>
+                            {% else %}
+                                <button class="btn-sm btn-assign" onclick="quickAssign({{ registered_advisor.id }}, '{{ registered_advisor.full_name }}')">
+                                    👥 Assign
                                 </button>
                             {% endif %}
                         {% else %}
@@ -552,9 +676,74 @@
                     <label class="form-label" for="monthlyGoal">Monthly Goal (£)</label>
                     <input type="number" id="monthlyGoal" name="monthly_goal" class="form-input" step="0.01" required>
                 </div>
+                <div class="form-group">
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="isHidden" name="is_hidden">
+                        <label for="isHidden">Hidden Team (members can't see each other in leaderboards)</label>
+                    </div>
+                </div>
                 <div class="form-buttons">
                     <button type="button" class="btn-cancel" onclick="closeModal('createTeamModal')">Cancel</button>
                     <button type="submit" class="btn-submit">Create Team</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Team Modal -->
+    <div id="editTeamModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Edit Team</h3>
+                <button class="close-modal" onclick="closeModal('editTeamModal')">×</button>
+            </div>
+            <form id="editTeamForm">
+                <input type="hidden" id="editTeamId" name="team_id">
+                <div class="form-group">
+                    <label class="form-label" for="editTeamName">Team Name</label>
+                    <input type="text" id="editTeamName" name="name" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="editMonthlyGoal">Monthly Goal (£)</label>
+                    <input type="number" id="editMonthlyGoal" name="monthly_goal" class="form-input" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="editIsHidden" name="is_hidden">
+                        <label for="editIsHidden">Hidden Team (members can't see each other in leaderboards)</label>
+                    </div>
+                </div>
+                <div class="form-buttons">
+                    <button type="button" class="btn-cancel" onclick="closeModal('editTeamModal')">Cancel</button>
+                    <button type="submit" class="btn-submit">Update Team</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Advisor Goal Modal -->
+    <div id="editGoalModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Edit Yearly Goal</h3>
+                <button class="close-modal" onclick="closeModal('editGoalModal')">×</button>
+            </div>
+            <form id="editGoalForm">
+                <input type="hidden" id="editGoalAdvisorId" name="advisor_id">
+                <div class="form-group">
+                    <label class="form-label" for="editGoalAdvisorName">Advisor</label>
+                    <input type="text" id="editGoalAdvisorName" class="form-input" readonly style="background-color: #f8f9fa;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="editYearlyGoal">Yearly Goal (£)</label>
+                    <input type="number" id="editYearlyGoal" name="yearly_goal" class="form-input" step="0.01" required>
+                    <small style="color: #7f8c8d; font-size: 0.85rem; margin-top: 0.5rem; display: block;">
+                        This goal applies to the current company: <strong id="goalCompanyName"></strong>
+                    </small>
+                </div>
+                <div class="form-buttons">
+                    <button type="button" class="btn-cancel" onclick="closeModal('editGoalModal')">Cancel</button>
+                    <button type="submit" class="btn-submit">Update Goal</button>
                 </div>
             </form>
         </div>
@@ -573,9 +762,7 @@
                     <select id="advisorSelect" name="advisor_id" class="form-select" required>
                         <option value="">Choose advisor...</option>
                         {% for advisor in advisors %}
-                        {% if not advisor.team %}
                         <option value="{{ advisor.id }}">{{ advisor.full_name }}</option>
-                        {% endif %}
                         {% endfor %}
                     </select>
                 </div>
@@ -584,7 +771,7 @@
                     <select id="teamSelect" name="team_id" class="form-select" required>
                         <option value="">Choose team...</option>
                         {% for team in teams %}
-                        <option value="{{ team.id }}">{{ team.name }}</option>
+                        <option value="{{ team.id }}">{{ team.name }}{% if team.is_hidden %} (Hidden){% endif %}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -635,6 +822,11 @@
             }
         }
 
+        // View advisor dashboard function
+        function viewAdvisorDashboard(advisorId) {
+            window.open(`/master/advisor/${advisorId}`, '_blank');
+        }
+
         // Modal management
         function openCreateTeamModal() {
             document.getElementById('createTeamModal').style.display = 'block';
@@ -646,6 +838,49 @@
 
         function closeModal(modalId) {
             document.getElementById(modalId).style.display = 'none';
+        }
+
+        // Edit team function
+        function editTeam(teamId, teamName, monthlyGoal, isHidden) {
+            document.getElementById('editTeamId').value = teamId;
+            document.getElementById('editTeamName').value = teamName;
+            document.getElementById('editMonthlyGoal').value = monthlyGoal;
+            document.getElementById('editIsHidden').checked = isHidden;
+            document.getElementById('editTeamModal').style.display = 'block';
+        }
+
+        // Edit advisor goal function
+        function editAdvisorGoal(advisorId, advisorName, currentGoal) {
+            document.getElementById('editGoalAdvisorId').value = advisorId;
+            document.getElementById('editGoalAdvisorName').value = advisorName;
+            document.getElementById('editYearlyGoal').value = currentGoal;
+            document.getElementById('goalCompanyName').textContent = currentCompany.toUpperCase();
+            document.getElementById('editGoalModal').style.display = 'block';
+        }
+
+        // Delete team function
+        async function deleteTeam(teamId, teamName) {
+            if (confirm(`Are you sure you want to delete the team "${teamName}"? This will unassign all members from this team and cannot be undone.`)) {
+                try {
+                    const response = await fetch(`/api/delete-team/${teamId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        alert(result.message);
+                        location.reload();
+                    } else {
+                        const errorData = await response.json();
+                        alert('Error deleting team: ' + (errorData.error || 'Unknown error'));
+                    }
+                } catch (error) {
+                    alert('Error deleting team: ' + error.message);
+                }
+            }
         }
 
         // Close modal when clicking outside
@@ -661,6 +896,9 @@
             
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData.entries());
+            
+            // Convert checkbox to boolean
+            data.is_hidden = document.getElementById('isHidden').checked;
             
             try {
                 const response = await fetch('/api/create-team', {
@@ -682,6 +920,73 @@
             }
         });
 
+        document.getElementById('editTeamForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            const teamId = data.team_id;
+            
+            // Convert checkbox to boolean
+            data.is_hidden = document.getElementById('editIsHidden').checked;
+            delete data.team_id; // Remove from data object
+            
+            try {
+                const response = await fetch(`/api/edit-team/${teamId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(result.message);
+                    location.reload();
+                } else {
+                    const errorData = await response.json();
+                    alert('Error updating team: ' + (errorData.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error updating team: ' + error.message);
+            }
+        });
+
+        // Edit advisor goal form submission
+        document.getElementById('editGoalForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            try {
+                const response = await fetch('/api/update-advisor-goal', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        advisor_id: parseInt(data.advisor_id),
+                        yearly_goal: parseFloat(data.yearly_goal),
+                        company: currentCompany
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(result.message);
+                    closeModal('editGoalModal');
+                    location.reload();
+                } else {
+                    const errorData = await response.json();
+                    alert('Error updating goal: ' + (errorData.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error updating goal: ' + error.message);
+            }
+        });
+
         document.getElementById('assignForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -698,6 +1003,8 @@
                 });
                 
                 if (response.ok) {
+                    const result = await response.json();
+                    alert(result.message);
                     location.reload();
                 } else {
                     const errorData = await response.json();
@@ -710,7 +1017,7 @@
 
         // Unassign from team
         async function unassignFromTeam(advisorId, advisorName) {
-            if (confirm(`Are you sure you want to unassign ${advisorName} from their team?`)) {
+            if (confirm(`Are you sure you want to unassign ${advisorName} from their team in ${currentCompany.toUpperCase()}?`)) {
                 try {
                     const response = await fetch('/api/unassign-from-team', {
                         method: 'POST',
@@ -723,6 +1030,8 @@
                     });
                     
                     if (response.ok) {
+                        const result = await response.json();
+                        alert(result.message);
                         location.reload();
                     } else {
                         const errorData = await response.json();
@@ -754,6 +1063,8 @@
                     });
                     
                     if (response.ok) {
+                        const result = await response.json();
+                        alert(result.message);
                         location.reload();
                     } else {
                         const errorData = await response.json();

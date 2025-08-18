@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ advisor.full_name }} - Dashboard View</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.5rem;
+        }
+        
+        .master-indicator {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .company-indicator {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .back-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            text-decoration: none;
+            transition: background-color 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .period-selector {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            padding: 0.5rem;
+            color: white;
+            font-weight: 500;
+            margin-right: 1rem;
+        }
+        
+        .period-selector option {
+            background: #667eea;
+            color: white;
+        }
+        
+        .main-content {
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .advisor-header {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .advisor-name {
+            font-size: 2.5rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .advisor-details {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .team-info {
+            display: inline-block;
+            background: #e8f4fd;
+            color: #2980b9;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .stat-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .stat-change {
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            display: inline-block;
+        }
+        
+        .stat-change.positive {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .stat-change.negative {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .section-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        .section-title {
+            font-size: 1.3rem;
+            color: #2c3e50;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+        
+        .case-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .case-info {
+            flex: 1;
+        }
+        
+        .case-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.25rem;
+        }
+        
+        .case-details {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+        
+        .case-amount {
+            font-weight: 700;
+            color: #27ae60;
+            font-size: 1.1rem;
+        }
+        
+        .filters {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .filter-select {
+            padding: 0.5rem;
+            border: 2px solid #ecf0f1;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+        }
+        
+        .team-member {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        
+        .member-name {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .member-amount {
+            font-weight: 700;
+            color: #3498db;
+        }
+        
+        .goal-progress {
+            background: #ecf0f1;
+            border-radius: 10px;
+            height: 8px;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+        
+        .goal-fill {
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+        
+        .goal-text {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            margin-top: 0.5rem;
+        }
+        
+        .no-data {
+            text-align: center;
+            color: #7f8c8d;
+            font-style: italic;
+            padding: 2rem;
+        }
+        
+        @media (max-width: 768px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .advisor-name {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>
+            👁️ Viewing: {{ advisor.full_name }}
+            <span class="master-indicator">Master View</span>
+        </h1>
+        <div class="header-actions">
+            <select id="period-selector" class="period-selector" onchange="updatePeriod()">
+                <option value="month">This Month</option>
+                <option value="quarter">Last 3 Months</option>
+                <option value="year">Last 12 Months</option>
+            </select>
+            <span class="company-indicator">{{ company_config.name }}</span>
+            <a href="/master" class="back-btn">
+                ← Back to Master Dashboard
+            </a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <!-- Advisor Header -->
+        <div class="advisor-header">
+            <div class="advisor-name">{{ advisor.full_name }}</div>
+            <div class="advisor-details">
+                {% if advisor.team %}
+                    <span class="team-info">
+                        {{ advisor.team.name }}
+                        {% if advisor.team.is_hidden %} (Hidden Team){% endif %}
+                    </span>
+                {% else %}
+                    <span style="color: #e74c3c;">No Team Assigned</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Statistics Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-icon">💰</span>
+                <div class="stat-value" id="total-submitted">£0</div>
+                <div class="stat-label">Total Submitted</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">✅</span>
+                <div class="stat-value" id="total-paid">£0</div>
+                <div class="stat-label">Total Paid</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">📊</span>
+                <div class="stat-value" id="payment-percentage">0%</div>
+                <div class="stat-label">Payment Rate</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">🎯</span>
+                <div class="stat-value" id="yearly-progress">0%</div>
+                <div class="stat-label">Yearly Goal Progress</div>
+            </div>
+        </div>
+
+        <!-- Content Grid -->
+        <div class="content-grid">
+            <!-- Recent Cases -->
+            <div class="section-card">
+                <div class="section-header">
+                    <h3 class="section-title">📋 Recent Cases</h3>
+                    <div class="filters">
+                        <select id="case-type-filter" class="filter-select" onchange="updateCases()">
+                            <option value="all">All Types</option>
+                        </select>
+                        <select id="data-type-filter" class="filter-select" onchange="updateCases()">
+                            <option value="submitted">Submitted</option>
+                            <option value="paid">Paid</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="cases-list">
+                    <div class="no-data">Loading cases...</div>
+                </div>
+            </div>
+
+            <!-- Team Performance -->
+            <div class="section-card">
+                <div class="section-header">
+                    <h3 class="section-title">👥 Team Performance</h3>
+                </div>
+                <div id="team-data">
+                    <div class="no-data">Loading team data...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Chart -->
+        <div class="section-card">
+            <div class="section-header">
+                <h3 class="section-title">📈 Performance Timeline</h3>
+                <select id="metric-type" class="filter-select" onchange="updateChart()">
+                    <option value="submitted">Submitted Amount</option>
+                    <option value="paid">Paid Amount</option>
+                </select>
+            </div>
+            <div class="chart-container">
+                <canvas id="performance-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Goal Progress -->
+        <div class="section-card">
+            <div class="section-header">
+                <h3 class="section-title">🎯 Yearly Goal Progress</h3>
+            </div>
+            <div id="goal-progress">
+                <div class="no-data">Loading goal data...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let advisorId = {{ advisor.id }};
+        let currentPeriod = 'month';
+        let performanceChart = null;
+
+        // Update period and refresh all data
+        function updatePeriod() {
+            currentPeriod = document.getElementById('period-selector').value;
+            loadDashboardData();
+            updateCases();
+            updateTeamData();
+            updateChart();
+            updateGoalData();
+        }
+
+        // Load main dashboard statistics
+        async function loadDashboardData() {
+            try {
+                const params = new URLSearchParams({ period: currentPeriod });
+                const response = await fetch(`/api/advisor-dashboard-data/${advisorId}?${params}`);
+                const data = await response.json();
+
+                document.getElementById('total-submitted').textContent = 
+                    '£' + (data.combined_total || 0).toLocaleString();
+                document.getElementById('total-paid').textContent = 
+                    '£' + (data.total_paid || 0).toLocaleString();
+                document.getElementById('payment-percentage').textContent = 
+                    Math.round(data.payment_percentage || 0) + '%';
+
+                // Update case type filter options
+                const caseTypeFilter = document.getElementById('case-type-filter');
+                caseTypeFilter.innerHTML = '<option value="all">All Types</option>';
+                
+                if (data.applications) {
+                    Object.keys(data.applications).forEach(type => {
+                        const option = document.createElement('option');
+                        option.value = type;
+                        option.textContent = type;
+                        caseTypeFilter.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+            }
+        }
+
+        // Load and display cases
+        async function updateCases() {
+            try {
+                const caseType = document.getElementById('case-type-filter').value;
+                const dataType = document.getElementById('data-type-filter').value;
+                const params = new URLSearchParams({ 
+                    period: currentPeriod,
+                    case_type: caseType,
+                    data_type: dataType
+                });
+                
+                const response = await fetch(`/api/advisor-cases/${advisorId}?${params}`);
+                const cases = await response.json();
+
+                const casesContainer = document.getElementById('cases-list');
+                
+                if (cases.length === 0) {
+                    casesContainer.innerHTML = '<div class="no-data">No cases found for this period</div>';
+                    return;
+                }
+
+                casesContainer.innerHTML = cases.slice(0, 10).map(case_ => `
+                    <div class="case-item">
+                        <div class="case-info">
+                            <div class="case-name">${case_.customer_name}</div>
+                            <div class="case-details">${case_.case_type} • ${case_.date}</div>
+                        </div>
+                        <div class="case-amount">£${case_.fee_submitted.toLocaleString()}</div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading cases:', error);
+                document.getElementById('cases-list').innerHTML = 
+                    '<div class="no-data">Error loading cases</div>';
+            }
+        }
+
+        // Load team performance data
+        async function updateTeamData() {
+            try {
+                const params = new URLSearchParams({ period: currentPeriod });
+                const response = await fetch(`/api/advisor-team-data/${advisorId}?${params}`);
+                const data = await response.json();
+
+                const teamContainer = document.getElementById('team-data');
+                
+                if (data.no_team) {
+                    teamContainer.innerHTML = '<div class="no-data">Advisor not assigned to a team</div>';
+                    return;
+                }
+
+                let teamHtml = `
+                    <div style="margin-bottom: 1rem;">
+                        <h4 style="color: #2c3e50; margin-bottom: 0.5rem;">${data.team_name}</h4>
+                        ${data.is_hidden_team ? '<span style="color: #f39c12; font-size: 0.9rem;">🔒 Hidden Team</span>' : ''}
+                    </div>
+                `;
+
+                if (data.team_members && data.team_members.length > 0) {
+                    teamHtml += data.team_members.map(member => `
+                        <div class="team-member">
+                            <span class="member-name">${member.name}</span>
+                            <span class="member-amount">£${member.total_submitted.toLocaleString()}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    teamHtml += '<div class="no-data">No team members found</div>';
+                }
+
+                teamContainer.innerHTML = teamHtml;
+            } catch (error) {
+                console.error('Error loading team data:', error);
+                document.getElementById('team-data').innerHTML = 
+                    '<div class="no-data">Error loading team data</div>';
+            }
+        }
+
+        // Update performance chart
+        async function updateChart() {
+            try {
+                const metricType = document.getElementById('metric-type').value;
+                const params = new URLSearchParams({ 
+                    period: currentPeriod,
+                    type: metricType
+                });
+                
+                const response = await fetch(`/api/advisor-performance-timeline/${advisorId}?${params}`);
+                const data = await response.json();
+
+                const ctx = document.getElementById('performance-chart').getContext('2d');
+                
+                if (performanceChart) {
+                    performanceChart.destroy();
+                }
+
+                performanceChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.map(item => new Date(item.date).toLocaleDateString()),
+                        datasets: [{
+                            label: metricType === 'submitted' ? 'Cumulative Submitted' : 'Cumulative Paid',
+                            data: data.map(item => item.value),
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '£' + value.toLocaleString();
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error updating chart:', error);
+            }
+        }
+
+        // Update goal progress
+        async function updateGoalData() {
+            try {
+                const response = await fetch(`/api/advisor-goal-data/${advisorId}`);
+                const data = await response.json();
+
+                document.getElementById('yearly-progress').textContent = 
+                    Math.round(data.user_yearly_progress || 0) + '%';
+
+                const goalContainer = document.getElementById('goal-progress');
+                
+                const progressHtml = `
+                    <div style="margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span style="font-weight: 600;">Yearly Progress</span>
+                            <span style="font-weight: 600;">£${data.user_yearly_total.toLocaleString()} / £${data.user_yearly_goal.toLocaleString()}</span>
+                        </div>
+                        <div class="goal-progress">
+                            <div class="goal-fill" style="width: ${Math.min(data.user_yearly_progress, 100)}%"></div>
+                        </div>
+                        <div class="goal-text">
+                            ${data.days_left_year} days remaining • ${data.submissions_count} submissions this year
+                        </div>
+                    </div>
+                    <div style="color: #7f8c8d; font-size: 0.9rem;">
+                        Remaining: £${data.user_yearly_remaining.toLocaleString()}
+                    </div>
+                `;
+
+                goalContainer.innerHTML = progressHtml;
+            } catch (error) {
+                console.error('Error loading goal data:', error);
+                document.getElementById('goal-progress').innerHTML = 
+                    '<div class="no-data">Error loading goal data</div>';
+            }
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboardData();
+            updateCases();
+            updateTeamData();
+            updateChart();
+            updateGoalData();
+        });
+    </script>
+</body>
+</html>

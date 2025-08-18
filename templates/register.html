@@ -193,9 +193,20 @@
             font-weight: 500;
         }
         
-        .advisor-cases {
+        .advisor-status {
             color: #7f8c8d;
             font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        
+        .status-available {
+            color: #27ae60;
+        }
+        
+        .status-registered {
+            color: #e67e22;
         }
         
         .important-notice {
@@ -255,6 +266,14 @@
             margin-bottom: 1rem;
             border-left: 4px solid #c62828;
             font-size: 0.9rem;
+        }
+        
+        .advisor-count {
+            color: #7f8c8d;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+            text-align: center;
+            font-style: italic;
         }
         
         @media (max-width: 768px) {
@@ -338,66 +357,25 @@
             <div class="advisors-card">
                 <h3 class="advisors-title">Available Advisors</h3>
                 <p class="advisors-subtitle">Use one of these exact names for automatic matching:</p>
-
+                
+                {% if available_advisors %}
+                <div class="advisor-count">{{ available_advisors|length }} advisors available</div>
+                
+                {% for advisor in available_advisors %}
                 <div class="advisor-item">
-                    <span class="advisor-name">Challenger Maya</span>
-                    <span class="advisor-cases">(1 sales)</span>
+                    <span class="advisor-name">{{ advisor }}</span>
+                    <span class="advisor-status status-available">
+                        ✅ Available
+                    </span>
                 </div>
-
+                {% endfor %}
+                
+                {% else %}
                 <div class="advisor-item">
-                    <span class="advisor-name">Daniel Jones</span>
-                    <span class="advisor-cases">(68 sales)</span>
+                    <span class="advisor-name">No advisors available</span>
+                    <span class="advisor-status">Contact admin</span>
                 </div>
-
-                <div class="advisor-item">
-                    <span class="advisor-name">Drew Gibson</span>
-                    <span class="advisor-cases">(76 sales)</span>
-                </div>
-
-                <div class="advisor-item">
-                    <span class="advisor-name">Elliot Cotterell</span>
-                    <span class="advisor-cases">(158 sales)</span>
-                </div>
-
-                <div class="advisor-item">
-                    <span class="advisor-name">Jamie Cope</span>
-                    <span class="advisor-cases">(17 sales)</span>
-                </div>
-
-                <div class="advisor-item">
-                    <span class="advisor-name">Lottie Brown</span>
-                    <span class="advisor-cases">(3 sales)</span>
-                </div>
-
-                <div class="advisor-item">
-                    <span class="advisor-name">Martyn Barberry</span>
-                    <span class="advisor-cases">(1 sales)</span>
-                </div>
-
-                <div class="advisor-item">
-                    <span class="advisor-name">Michael Olivieri</span>
-                    <span class="advisor-cases">(100 sales)</span>
-                </div>
-
-                <div class="advisor-item">
-                    <span class="advisor-name">Nicholas (referral)</span>
-                    <span class="advisor-cases">(2 sales)</span>
-                </div>
-
-                <div class="advisor-item">
-                    <span class="advisor-name">Oliver Cotterell</span>
-                    <span class="advisor-cases">(55 sales)</span>
-                </div>
-
-                <div class="advisor-item">
-                    <span class="advisor-name">Rachel Ashworth</span>
-                    <span class="advisor-cases">(48 sales)</span>
-                </div>
-
-                <div class="advisor-item">
-                    <span class="advisor-name">Steven Horn</span>
-                    <span class="advisor-cases">(29 sales)</span>
-                </div>
+                {% endif %}
             </div>
         </div>
     </div>
