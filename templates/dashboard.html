@@ -826,29 +826,7 @@
         }
 
         // Test function for scrolling
-        function testScrolling() {
-            const casesBody = document.getElementById('cases-body');
-            casesBody.innerHTML = '';
-            
-            for (let i = 1; i <= 20; i++) {
-                const row = document.createElement('tr');
-                
-                row.innerHTML = `
-                    <td title="Sample Customer ${i}">Sample Customer ${i}</td>
-                    <td>
-                        <span>Residential Mortgage (Including BTL)</span>
-                    </td>
-                    <td style="font-weight: 600; color: #2c3e50;">£${(Math.random() * 5000 + 1000).toFixed(2)}</td>
-                    <td><span class="status-badge status-pending">Pending</span></td>
-                    <td style="font-weight: 500;">${String(i).padStart(2, '0')} Aug</td>
-                    <td><span class="status-badge status-submitted">Submitted</span></td>
-                `;
-                casesBody.appendChild(row);
-            }
-            
-            document.querySelector('.cases-title span').textContent = '20';
-            console.log('Added 20 test cases - table should now be scrollable!');
-        }
+        
     </script>
 </body>
 </html>

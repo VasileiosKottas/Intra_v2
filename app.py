@@ -20,6 +20,7 @@ from sqlalchemy import or_, and_
 from flask_cors import CORS
 
 
+sync_manager = None
 app = Flask(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -31,7 +32,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 JOTFORM_API_KEY = os.getenv('JOTFORM_API_KEY', 'b78b083ca0a78392acf8de69666a3577')  # replace the hardcoded key
 origins = os.getenv('CORS_ORIGINS', '*')
 CORS(app, resources={r"/api/*": {"origins": [o.strip() for o in origins.split(',') if o.strip()]}})
-sync_manager = None
 
 db = SQLAlchemy(app)
 
@@ -45,7 +45,10 @@ VALID_BUSINESS_TYPES = [
 ]
 
 VALID_PAID_CASE_TYPES = [
-    'Residential'
+    'Residential',
+    'General Insurance',
+    'Term insurance',
+    'Other Referral'
 ]
 
 def _parse_date(s):
@@ -144,6 +147,7 @@ class PaidCase(db.Model):
     advisor_name = db.Column(db.String(100), nullable=False)
     advisor_id = db.Column(db.Integer, db.ForeignKey('advisors.id'), nullable=True)
     case_type = db.Column(db.String(100), nullable=False)
+    customer_name = db.Column(db.String(200), nullable=True)  # ✅ Added missing field
     value = db.Column(db.Float, nullable=False)
     date_paid = db.Column(db.Date, nullable=False)
     jotform_id = db.Column(db.String(50), unique=True)
@@ -453,6 +457,7 @@ class DataManager:
                         'advisor_name': advisor_name,
                         'case_type': case_type,
                         'value': value,
+                        'customer_name': customer_name,
                         'date_paid': date_paid or datetime.now().date(),
                         'jotform_id': case.get("submission_id")
                     })
@@ -523,6 +528,7 @@ class AutoSyncManager:
                             paid_case = PaidCase(
                                 advisor_name=case_data['advisor_name'],
                                 advisor_id=advisor.id if advisor else None,
+                                customer_name=case_data['customer_name'],
                                 case_type=case_data['case_type'],
                                 value=case_data['value'],
                                 date_paid=case_data['date_paid'],
@@ -874,12 +880,12 @@ def get_user_cases():
         ])
 
     else:
-        # UPDATED: For paid cases, add residential filter
+        # FIXED: For paid cases, use actual customer name
         query = PaidCase.query.filter(
             and_(
                 PaidCase.date_paid >= start_date,
                 PaidCase.date_paid <= end_date,
-                PaidCase.case_type.in_(VALID_PAID_CASE_TYPES),  # NEW FILTER
+                PaidCase.case_type.in_(VALID_PAID_CASE_TYPES),
                 or_(
                     PaidCase.advisor_id == user.id,
                     and_(PaidCase.advisor_id.is_(None), PaidCase.advisor_name == user.full_name)
@@ -895,7 +901,7 @@ def get_user_cases():
 
         return jsonify([
             {
-                'customer_name': 'Customer',
+                'customer_name': p.customer_name or 'Unknown Customer',  # ✅ Fixed: Use actual customer name
                 'case_type': p.case_type,
                 'fee_submitted': float(p.value or 0),
                 'payment_status': 'Paid',
