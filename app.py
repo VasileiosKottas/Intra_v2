@@ -31,6 +31,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 JOTFORM_API_KEY = os.getenv('JOTFORM_API_KEY', 'b78b083ca0a78392acf8de69666a3577')  # replace the hardcoded key
 origins = os.getenv('CORS_ORIGINS', '*')
 CORS(app, resources={r"/api/*": {"origins": [o.strip() for o in origins.split(',') if o.strip()]}})
+sync_manager = None
 
 db = SQLAlchemy(app)
 
