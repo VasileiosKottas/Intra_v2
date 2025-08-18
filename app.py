@@ -2000,8 +2000,8 @@ if __name__ == '__main__':
     sync_manager = AutoSyncManager()
     with app.app_context():
         db.create_all()
-        create_master_user()
-        create_sample_data()
+        # create_master_user()
+        # create_sample_data()
         sync_manager.sync_all_companies()
 
     sync_manager.setup_scheduler()
