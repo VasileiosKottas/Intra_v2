@@ -17,11 +17,11 @@ services:
         fromDatabase:
           name: sales-dashboard-db
           property: connectionString
-      - key: b78b083ca0a78392acf8de69666a3577
-        sync: True  # You'll set this manually in Render dashboard
+      - key: JOTFORM_API_KEY
+        sync: false  # set the value manually in Render
 
-  - type: postgres
-    name: sales-dashboard-db
+databases:
+  - name: sales-dashboard-db
     plan: free
     databaseName: sales_dashboard
     user: sales_dashboard_user
