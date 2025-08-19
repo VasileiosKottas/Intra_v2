@@ -22,12 +22,8 @@ def create_app(config_name='development'):
     # Load configuration
     load_config(app, config_name)
     
-    # ADD IFRAME SESSION SUPPORT HERE:
-    configure_iframe_support(app)
-    
     # Setup CORS with iframe support
     setup_cors(app)
-        
     # Initialize database
     from app.models import init_db
     init_db(app)
@@ -42,23 +38,12 @@ def create_app(config_name='development'):
     
     return app
 
-def configure_iframe_support(app):
-    """Configure Flask for iframe embedding support"""
-    
-    # Session configuration for iframe compatibility
-    app.config['SESSION_COOKIE_SAMESITE'] = 'None'
-    app.config['SESSION_COOKIE_SECURE'] = True  # Requires HTTPS
-    app.config['SESSION_COOKIE_HTTPONLY'] = True
-    app.config['SESSION_COOKIE_DOMAIN'] = None  # Allow cross-domain
-    
-    print("✓ Configured iframe session support")
-
 def setup_cors(app):
     """Setup CORS with iframe and credentials support"""
     
     origins = os.getenv('CORS_ORIGINS', '*')
     
-    # Parse origins from environment variable
+    # Enhanced CORS configuration for iframe support
     if origins == '*':
         allowed_origins = [
             "https://windsorhillmortgages.co.uk",
@@ -68,33 +53,20 @@ def setup_cors(app):
     else:
         allowed_origins = [o.strip() for o in origins.split(',') if o.strip()]
     
-    # Add your specific WordPress paths
-    wordpress_origins = []
-    for origin in allowed_origins:
-        if 'windsorhillmortgages.co.uk' in origin:
-            wordpress_origins.extend([
-                origin,
-                f"{origin}/winsuite",
-                f"{origin}/dashboard",
-                f"{origin}/sales-dashboard"
-            ])
-        else:
-            wordpress_origins.append(origin)
-    
     CORS(app, resources={
         r"/api/*": {
-            "origins": wordpress_origins,
+            "origins": allowed_origins,
             "supports_credentials": True,
             "allow_headers": ["Content-Type", "Authorization"],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
         },
         r"/*": {  # Allow all routes for iframe embedding
-            "origins": wordpress_origins,
+            "origins": allowed_origins,
             "supports_credentials": True
         }
     }, supports_credentials=True)
     
-    print(f"✓ Configured CORS for origins: {wordpress_origins}")
+    print(f"✓ Configured CORS for iframe support with origins: {allowed_origins}")
 
 def load_config(app, config_name='development'):
     """Load configuration into Flask app"""
