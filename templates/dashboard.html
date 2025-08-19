@@ -185,7 +185,7 @@
             <img src="{{ url_for('static', filename='images/' + ('CnC.png' if session.get('company_mode', 'windsor') == 'cnc' else company_config.logo)) }}"
                 alt="Company logo" class="logo {{ 'cnc-logo' if session.get('company_mode', 'windsor') == 'cnc' else '' }}" id="company-logo">
             <span id="suite-name">{{ 'CSuite' if session.get('company_mode', 'windsor') == 'cnc' else 'WinSuite' }}</span>
-            <span class="company-indicator" id="company-indicator">{{ 'C&C' if session.get('company_mode', 'windsor') == 'cnc' else 'Windsor' }}</span>
+            <!-- <span class="company-indicator" id="company-indicator">{{ 'C&C' if session.get('company_mode', 'windsor') == 'cnc' else 'Windsor' }}</span> -->
         </h1>
         <div class="user-info">
             <select id="company-selector" class="company-selector" onchange="switchCompany()">

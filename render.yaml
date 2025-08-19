@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: sales-dashboard
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.18
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FLASK_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sales-dashboard-db
+          property: connectionString
+      - key: JOTFORM_API_KEY
+        sync: false  # You'll set this manually in Render dashboard
+
+  - type: pgsql
+    name: sales-dashboard-db
+    plan: free
+    databaseName: sales_dashboard
+    user: sales_dashboard_user
