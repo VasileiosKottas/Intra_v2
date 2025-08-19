@@ -26,10 +26,14 @@ def create_app(config_name='development'):
     origins = os.getenv('CORS_ORIGINS', '*')
     CORS(app, resources={
         r"/api/*": {
-            "origins": [o.strip() for o in origins.split(',') if o.strip()]
+            "origins": [
+                "https://windsorhillmortgages.co.uk/winsuite",
+                "https://www.windsorhillmortgages.co.uk/winsuite",
+                "https://sales-dashboard-5g5x.onrender.com"
+            ]
         }
     })
-    
+        
     # Initialize database
     from app.models import init_db
     init_db(app)
