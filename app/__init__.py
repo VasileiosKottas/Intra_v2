@@ -114,6 +114,11 @@ def load_config(app, config_name='development'):
             'SQLALCHEMY_DATABASE_URI': f"sqlite:///{db_path}",
             'SECRET_KEY': os.getenv('SECRET_KEY', 'dev-secret-key'),
             'SQLALCHEMY_TRACK_MODIFICATIONS': False,
+            # Session configuration for iframe support
+            'SESSION_COOKIE_SAMESITE': 'None',
+            'SESSION_COOKIE_SECURE': True,
+            'SESSION_COOKIE_HTTPONLY': True,
+            'SESSION_COOKIE_DOMAIN': None,
         },
         'testing': {
             'TESTING': True,
@@ -126,6 +131,11 @@ def load_config(app, config_name='development'):
             'SQLALCHEMY_DATABASE_URI': os.getenv('DATABASE_URL', f"sqlite:///{db_path}"),
             'SECRET_KEY': os.getenv('SECRET_KEY'),
             'SQLALCHEMY_TRACK_MODIFICATIONS': False,
+            # Session configuration for iframe support
+            'SESSION_COOKIE_SAMESITE': 'None',
+            'SESSION_COOKIE_SECURE': True,
+            'SESSION_COOKIE_HTTPONLY': True,
+            'SESSION_COOKIE_DOMAIN': None,
         }
     }
     
@@ -133,3 +143,4 @@ def load_config(app, config_name='development'):
     print(f"✓ Loaded {config_name} configuration")
     print(f"✓ Template folder: {app.template_folder}")
     print(f"✓ Static folder: {app.static_folder}")
+    print(f"✓ Session config applied for iframe support")
