@@ -1,107 +1,24 @@
 """
-Sales Dashboard Application Package
-Entry point for the Flask application with factory pattern
+Middlewares package
+Exports middleware setup function
 """
 
-import os
-from flask import Flask
-from flask_cors import CORS
+from .cache import CacheMiddleware
+from .security import SecurityMiddleware
+from .logging import LoggingMiddleware
+from .error_handling import ErrorHandlingMiddleware
 
-def create_app(config_name='development'):
-    """Application factory function"""
+def setup_middlewares(app):
+    """Setup all middlewares for the application"""
+    CacheMiddleware(app)
+    SecurityMiddleware(app)
+    LoggingMiddleware(app)
+    ErrorHandlingMiddleware(app)
     
-    # Get the correct template and static directories
-    # This ensures Flask looks in the right place for templates and static files
-    template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'templates'))
-    static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'static'))
-    
-    app = Flask(__name__, 
-                template_folder=template_dir,
-                static_folder=static_dir)
-    
-    # Load configuration
-    load_config(app, config_name)
-    
-    # Setup CORS with iframe support
-    setup_cors(app)
-    # Initialize database
-    from app.models import init_db
-    init_db(app)
-    
-    # Setup middlewares
-    from app.middlewares import setup_middlewares
-    setup_middlewares(app)
-    
-    # Register controllers
-    from app.controllers import register_controllers
-    register_controllers(app)
-    
-    return app
+    print(" All middlewares configured successfully")
 
-def setup_cors(app):
-    """Setup CORS with iframe and credentials support"""
-    
-    origins = os.getenv('CORS_ORIGINS', '*')
-    
-    # Enhanced CORS configuration for iframe support
-    if origins == '*':
-        allowed_origins = [
-            "https://windsorhillmortgages.co.uk",
-            "https://www.windsorhillmortgages.co.uk",
-            "https://sales-dashboard-5g5x.onrender.com"
-        ]
-    else:
-        allowed_origins = [o.strip() for o in origins.split(',') if o.strip()]
-    
-    CORS(app, resources={
-        r"/api/*": {
-            "origins": allowed_origins,
-            "supports_credentials": True,
-            "allow_headers": ["Content-Type", "Authorization"],
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-        },
-        r"/*": {  # Allow all routes for iframe embedding
-            "origins": allowed_origins,
-            "supports_credentials": True
-        }
-    }, supports_credentials=True)
-    
-    print(f"✓ Configured CORS for iframe support with origins: {allowed_origins}")
-
-def load_config(app, config_name='development'):
-    """Load configuration into Flask app"""
-    
-    # Detect if running on Render
-    if os.environ.get('RENDER'):
-        config_name = 'production'
-    
-    # Base configuration
-    basedir = os.path.abspath(os.path.dirname(__file__))
-    db_path = os.path.join(basedir, "..", "instance", "sales_dashboard.db")
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    
-    configs = {
-        'development': {
-            'DEBUG': True,
-            'SQLALCHEMY_DATABASE_URI': f"sqlite:///{db_path}",
-            'SECRET_KEY': os.getenv('SECRET_KEY', 'dev-secret-key'),
-            'SQLALCHEMY_TRACK_MODIFICATIONS': False,
-        },
-        'testing': {
-            'TESTING': True,
-            'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:',
-            'SECRET_KEY': 'test-secret-key',
-            'SQLALCHEMY_TRACK_MODIFICATIONS': False,
-        },
-        'production': {
-            'DEBUG': False,
-            'SQLALCHEMY_DATABASE_URI': os.getenv('DATABASE_URL', f"sqlite:///{db_path}"),
-            'SECRET_KEY': os.getenv('SECRET_KEY'),
-            'SQLALCHEMY_TRACK_MODIFICATIONS': False,
-        }
-    }
-    
-    app.config.update(configs.get(config_name, configs['development']))
-    print(f"✓ Loaded {config_name} configuration")
-    print(f"✓ Template folder: {app.template_folder}")
-    print(f"✓ Static folder: {app.static_folder}")
+__all__ = [
+    'setup_middlewares',
+    'CacheMiddleware', 'SecurityMiddleware', 
+    'LoggingMiddleware', 'ErrorHandlingMiddleware'
+]
