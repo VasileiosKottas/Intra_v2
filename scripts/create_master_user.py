@@ -192,15 +192,14 @@ class DatabaseService:
             # Create sample advisors
             advisors_data = [
                 {'full_name': 'Jamie Cope', 'username': 'jamie', 'email': 'jamie@houseofwindsor.com'},
-                {'full_name': 'Steven Horn', 'username': 'steven', 'email': 'steven@houseofwindsor.com'},
                 {'full_name': 'Daniel Jones', 'username': 'daniel', 'email': 'daniel@houseofwindsor.com'},
                 {'full_name': 'Drew Gibson', 'username': 'drew', 'email': 'drew@houseofwindsor.com'},
                 {'full_name': 'Michael Olivieri', 'username': 'michael', 'email': 'michael@houseofwindsor.com'},
                 {'full_name': 'Oliver Cotterell', 'username': 'oliver', 'email': 'oliver@houseofwindsor.com'},
                 {'full_name': 'Elliot Cotterell', 'username': 'elliot', 'email': 'elliot@houseofwindsor.com'},
-                {'full_name': 'Rachel Ashworth', 'username': 'rachel', 'email': 'rachel@houseofwindsor.com'},
                 {'full_name': 'Lottie Brown', 'username': 'lottie', 'email': 'lottie@houseofwindsor.com'},
                 {'full_name': 'Martyn Barberry', 'username': 'martyn', 'email': 'martyn@houseofwindsor.com'},
+                {'full_name': 'Nick Snailum (Referral)', 'username': 'nick', 'email': 'nick@houseofwindsor.com'}
             ]
             
             created_advisors = []

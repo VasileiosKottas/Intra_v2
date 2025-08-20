@@ -28,6 +28,7 @@ class BaseController:
                 return redirect(url_for('auth.login'))
             
             user = db.session.get(Advisor, session['user_id'])
+            
             if not user:
                 session.clear()
                 return redirect(url_for('auth.login'))
@@ -57,7 +58,8 @@ class BaseController:
         """Get current authenticated user"""
         user_id = session.get('user_id')
         if user_id:
-            return db.session.get(Advisor, user_id)
+            user = db.session.get(Advisor, user_id)
+            return user
         return None
     
     def get_visible_team_members(self, user: Advisor, current_company: str) -> list:

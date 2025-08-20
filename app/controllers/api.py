@@ -1,5 +1,5 @@
 """
-API controller for REST endpoints
+API controller for REST endpoints - Updated with Referral Management
 """
 
 from flask import request, jsonify, session
@@ -8,6 +8,9 @@ from app.models import db
 from app.models.advisor import Advisor
 from app.models.team import Team
 from app.models.sync_log import SyncLog
+from app.models.referral_recipient import ReferralRecipient
+from app.models.submission import Submission
+
 from app.services.sync import DataSyncService
 from app.services.analytics import AnalyticsService
 from app.services.date import DateService
@@ -53,6 +56,25 @@ class APIController(BaseController):
         self.app.add_url_rule('/api/advisor-goal-data/<int:advisor_id>', 'api.advisor_goal_data',
                              self.master_required(self.get_advisor_goal_data))
         
+        # Referral management routes (NEW)
+        self.app.add_url_rule('/api/referral-recipients', 'api.get_referral_recipients', 
+                            self.master_required(self.get_referral_recipients), methods=['GET'])
+        self.app.add_url_rule('/api/referral-recipients', 'api.set_referral_recipient',
+                            self.master_required(self.set_referral_recipient), methods=['POST'])
+
+        # You might also want to add a DELETE route for removing recipients
+        self.app.add_url_rule('/api/referral-recipients/<int:advisor_id>', 'api.remove_referral_recipient',
+                            self.master_required(self.remove_referral_recipient), methods=['DELETE'])
+
+
+        # Change password
+        self.app.add_url_rule('/api/update-user-credentials', 'api.update_user_credentials',
+                            self.master_required(self.update_user_credentials), methods=['PUT'])
+        self.app.add_url_rule('/api/reset-user-password', 'api.reset_user_password',
+                            self.master_required(self.reset_user_password), methods=['POST'])
+        self.app.add_url_rule('/api/get-user-details/<int:user_id>', 'api.get_user_details',
+                            self.master_required(self.get_user_details))
+
         # Master API routes
         self.app.add_url_rule('/api/create-team', 'api.create_team', 
                              self.master_required(self.create_team), methods=['POST'])
@@ -70,7 +92,37 @@ class APIController(BaseController):
                              self.master_required(self.sync_now), methods=['POST'])
         self.app.add_url_rule('/api/sync-status', 'api.sync_status',
                              self.master_required(self.sync_status))
-    
+
+        # Box plot performance data
+        self.app.add_url_rule('/api/performance-boxplot', 'api.performance_boxplot', 
+                            self.login_required(self.get_performance_boxplot))
+        self.app.add_url_rule('/api/advisor-performance-boxplot/<int:advisor_id>', 'api.advisor_performance_boxplot',
+                            self.master_required(self.get_advisor_performance_boxplot))
+
+
+        self.app.add_url_rule('/api/debug-referrals', 'api.debug_referrals',
+                            self.login_required(self.debug_referrals), methods=['GET'])
+        self.app.add_url_rule('/api/debug-dashboard-calc', 'api.debug_dashboard_calc',
+                            self.login_required(self.debug_dashboard_calculation), methods=['GET'])
+
+        # Advisor sync route (allows regular advisors to sync data)
+        self.app.add_url_rule('/api/advisor-sync', 'api.advisor_sync',
+                            self.login_required(self.advisor_sync), methods=['POST'])
+        
+        self.app.add_url_rule('/api/debug-all-referrals', 'api.debug_all_referrals',
+                             self.login_required(self.debug_all_referrals), methods=['GET'])
+
+        # Referral mapping management routes
+        self.app.add_url_rule('/api/referral-mappings', 'api.get_referral_mappings',
+                            self.master_required(self.get_referral_mappings), methods=['GET'])
+        self.app.add_url_rule('/api/referral-mappings', 'api.add_referral_mapping',
+                            self.master_required(self.add_referral_mapping), methods=['POST'])
+        self.app.add_url_rule('/api/referral-mappings/<int:mapping_id>', 'api.remove_referral_mapping',
+                            self.master_required(self.remove_referral_mapping), methods=['DELETE'])
+        self.app.add_url_rule('/api/unmapped-referrals', 'api.get_unmapped_referrals',
+                            self.master_required(self.get_unmapped_referrals), methods=['GET'])
+
+
     def set_company(self):
         """Switch between company modes"""
         data = request.get_json()
@@ -81,7 +133,38 @@ class APIController(BaseController):
         
         SessionManager.set_current_company(session, company)
         return jsonify({'success': True, 'company': company})
-    
+
+    def _check_referral_match(self, referral_to_value, advisor_full_name, advisor_id, current_company):
+        """Check if a referral_to value matches an advisor using database mappings"""
+        if not referral_to_value or not advisor_full_name:
+            return False
+        
+        referral_to_lower = referral_to_value.lower().strip()
+        advisor_name_lower = advisor_full_name.lower().strip()
+        
+        # First check database mappings
+        from app.models.referral_mapping import ReferralMapping
+        mapped_advisor_id = ReferralMapping.get_advisor_for_referral(referral_to_value, current_company)
+        if mapped_advisor_id == advisor_id:
+            return True
+        
+        # Fallback to hardcoded mappings for backward compatibility
+        hardcoded_mappings = self._get_referral_name_mappings()
+        mapped_name = hardcoded_mappings.get(referral_to_lower)
+        if mapped_name and mapped_name.lower() == advisor_name_lower:
+            return True
+        
+        # Direct name match
+        if advisor_name_lower in referral_to_lower or referral_to_lower in advisor_name_lower:
+            return True
+        
+        # Check if advisor name contains first name from referral
+        advisor_first_name = advisor_name_lower.split()[0] if advisor_name_lower else ""
+        if advisor_first_name and advisor_first_name in referral_to_lower:
+            return True
+        
+        return False
+
     def get_dashboard_data(self):
         """Get main dashboard data for current user"""
         user = self.get_current_user()
@@ -102,18 +185,30 @@ class APIController(BaseController):
             config_manager.get_valid_paid_case_types(current_company)
         )
         
-        # Add referrals received calculation
+        # FIXED: Calculate referrals received with database mappings
         referrals_received = 0
-        if user.full_name.lower() in ['steven horn', 'daniel jones']:
-            all_submissions = user.get_submissions_for_period(current_company, start_date, end_date)
-            referrals_received = len([r for r in all_submissions 
-                                    if r.business_type and ('steve' in r.business_type.lower() or 'daniel' in r.business_type.lower())])
+        
+        # Check if user is a referral recipient for current company
+        if ReferralRecipient.is_referral_recipient(user.id, current_company):
+            # Get ALL referrals for the company and period
+            from app.models.submission import Submission
+            all_referrals = Submission.query.filter(
+                Submission.company == current_company,
+                Submission.submission_date >= start_date,
+                Submission.submission_date <= end_date,
+                Submission.business_type == 'Referral'
+            ).all()
+            
+            # Count referrals that match this user using improved matching with database
+            for referral in all_referrals:
+                if self._check_referral_match(referral.referral_to, user.full_name, user.id, current_company):
+                    referrals_received += 1
         
         metrics['referrals_received'] = referrals_received
         metrics['company'] = current_company
         
         return jsonify(metrics)
-    
+
     def get_advisor_dashboard_data(self, advisor_id):
         """Get dashboard data for a specific advisor (master only)"""
         advisor = db.session.get(Advisor, advisor_id)
@@ -134,12 +229,24 @@ class APIController(BaseController):
             config_manager.get_valid_paid_case_types(current_company)
         )
         
-        # Add referrals received calculation
+        # FIXED: Calculate referrals received with database mappings
         referrals_received = 0
-        if advisor.full_name.lower() in ['steven horn', 'daniel jones']:
-            all_submissions = advisor.get_submissions_for_period(current_company, start_date, end_date)
-            referrals_received = len([r for r in all_submissions 
-                                    if r.business_type and ('steve' in r.business_type.lower() or 'daniel' in r.business_type.lower())])
+        
+        # Check if advisor is a referral recipient for current company
+        if ReferralRecipient.is_referral_recipient(advisor.id, current_company):
+            # Get ALL referrals for the company and period
+            from app.models.submission import Submission
+            all_referrals = Submission.query.filter(
+                Submission.company == current_company,
+                Submission.submission_date >= start_date,
+                Submission.submission_date <= end_date,
+                Submission.business_type == 'Referral'
+            ).all()
+            
+            # Count referrals that match this advisor using improved matching with database
+            for referral in all_referrals:
+                if self._check_referral_match(referral.referral_to, advisor.full_name, advisor.id, current_company):
+                    referrals_received += 1
         
         metrics['referrals_received'] = referrals_received
         metrics['company'] = current_company
@@ -147,6 +254,154 @@ class APIController(BaseController):
         
         return jsonify(metrics)
     
+    def get_referral_mappings(self):
+        """Get all referral mappings for current company"""
+        current_company = SessionManager.get_current_company(session)
+        
+        from app.models.referral_mapping import ReferralMapping
+        mappings = ReferralMapping.get_mappings_for_company(current_company)
+        
+        return jsonify([{
+            'id': mapping.id,
+            'referral_name': mapping.referral_name,
+            'advisor_id': mapping.advisor_id,
+            'advisor_name': mapping.advisor.full_name,
+            'company': mapping.company,
+            'is_active': mapping.is_active
+        } for mapping in mappings])
+
+    def add_referral_mapping(self):
+        """Add a new referral mapping"""
+        data = request.get_json()
+        referral_name = data.get('referral_name', '').strip()
+        advisor_id = data.get('advisor_id')
+        
+        if not referral_name or not advisor_id:
+            return jsonify({'error': 'Referral name and advisor ID are required'}), 400
+        
+        advisor = db.session.get(Advisor, advisor_id)
+        if not advisor:
+            return jsonify({'error': 'Advisor not found'}), 404
+        
+        current_company = SessionManager.get_current_company(session)
+        
+        try:
+            from app.models.referral_mapping import ReferralMapping
+            ReferralMapping.add_mapping(referral_name, advisor_id, current_company)
+            
+            return jsonify({
+                'success': True,
+                'message': f'Added mapping: "{referral_name}" → {advisor.full_name}'
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': f'Failed to add mapping: {str(e)}'}), 500
+
+    def remove_referral_mapping(self, mapping_id):
+        """Remove a referral mapping"""
+        try:
+            from app.models.referral_mapping import ReferralMapping
+            success = ReferralMapping.remove_mapping(mapping_id)
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'Mapping removed successfully'
+                })
+            else:
+                return jsonify({'error': 'Mapping not found'}), 404
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': f'Failed to remove mapping: {str(e)}'}), 500
+
+    def get_unmapped_referrals(self):
+        """Get referral names that don't have mappings yet"""
+        current_company = SessionManager.get_current_company(session)
+        
+        # Get all unique referral_to values from submissions
+        from app.models.submission import Submission
+        from app.models.referral_mapping import ReferralMapping
+        
+        all_referrals = db.session.query(Submission.referral_to).filter(
+            Submission.company == current_company,
+            Submission.business_type == 'Referral',
+            Submission.referral_to.isnot(None),
+            Submission.referral_to != ''
+        ).distinct().all()
+        
+        # Get existing mappings
+        existing_mappings = {m.referral_name for m in ReferralMapping.get_mappings_for_company(current_company)}
+        
+        # Find unmapped referrals
+        unmapped = []
+        for (referral_to,) in all_referrals:
+            if referral_to and referral_to.lower().strip() not in existing_mappings:
+                unmapped.append(referral_to)
+        
+        return jsonify(sorted(unmapped))
+
+    # NEW REFERRAL MANAGEMENT METHODS
+    def get_referral_recipients(self):
+        """Get all referral recipients for current company"""
+        current_company = SessionManager.get_current_company(session)
+        
+        recipients = ReferralRecipient.get_recipients_for_company(current_company)
+        
+        return jsonify([{
+            'id': recipient.id,
+            'advisor_id': recipient.advisor_id,
+            'advisor_name': recipient.advisor.full_name,
+            'company': recipient.company,
+            'is_active': recipient.is_active
+        } for recipient in recipients])
+
+    def set_referral_recipient(self):
+        """Set or update referral recipient status"""
+        data = request.get_json()
+        advisor_id = data.get('advisor_id')
+        is_active = data.get('is_active', True)
+        
+        if not advisor_id:
+            return jsonify({'error': 'Advisor ID required'}), 400
+        
+        advisor = db.session.get(Advisor, advisor_id)
+        if not advisor:
+            return jsonify({'error': 'Advisor not found'}), 404
+        
+        current_company = SessionManager.get_current_company(session)
+        
+        try:
+            ReferralRecipient.set_referral_recipient(advisor_id, current_company, is_active)
+            
+            action = "enabled" if is_active else "disabled"
+            return jsonify({
+                'success': True,
+                'message': f'Referral receiving {action} for {advisor.full_name} in {current_company.upper()}'
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': f'Failed to update referral recipient: {str(e)}'}), 500
+
+    def remove_referral_recipient(self, advisor_id):
+        """Remove referral recipient status"""
+        advisor = db.session.get(Advisor, advisor_id)
+        if not advisor:
+            return jsonify({'error': 'Advisor not found'}), 404
+        
+        current_company = SessionManager.get_current_company(session)
+        
+        try:
+            ReferralRecipient.set_referral_recipient(advisor_id, current_company, False)
+            
+            return jsonify({
+                'success': True,
+                'message': f'Referral receiving disabled for {advisor.full_name} in {current_company.upper()}'
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': f'Failed to remove referral recipient: {str(e)}'}), 500
+    
+    # Continue with existing methods...
     def get_user_cases(self):
         """Get cases for current user"""
         user = self.get_current_user()
@@ -542,12 +797,23 @@ class APIController(BaseController):
         team_name = team.name
         
         try:
-            team.delete()
+            # First, manually remove all team memberships
+            for membership in list(team.advisor_memberships):
+                db.session.delete(membership)
+            
+            # Flush to ensure memberships are deleted before team deletion
+            db.session.flush()
+            
+            # Now delete the team
+            db.session.delete(team)
+            db.session.commit()
+            
             return jsonify({'success': True, 'message': f'Team {team_name} deleted successfully'})
         except Exception as e:
             db.session.rollback()
+            print(f"Error deleting team: {str(e)}")  # For debugging
             return jsonify({'error': 'Failed to delete team'}), 500
-    
+        
     def assign_to_team(self):
         """Assign an advisor to a team"""
         data = request.get_json()
@@ -599,32 +865,352 @@ class APIController(BaseController):
             return jsonify({'success': True, 'message': f'{advisor.full_name} unassigned from {current_team.name}'})
         else:
             return jsonify({'error': message}), 500
-    
 
     def update_advisor_goal(self):
-            """Update an advisor's yearly goal for the current company"""
-            data = request.get_json()
-            advisor_id = data.get('advisor_id')
-            yearly_goal = data.get('yearly_goal')
-            company = data.get('company', SessionManager.get_current_company(session))
+        """Update an advisor's yearly goal for the current company"""
+        data = request.get_json()
+        advisor_id = data.get('advisor_id')
+        yearly_goal = data.get('yearly_goal')
+        company = data.get('company', SessionManager.get_current_company(session))
+        
+        if not advisor_id or yearly_goal is None:
+            return jsonify({'error': 'Advisor ID and yearly goal are required'}), 400
+        
+        advisor = db.session.get(Advisor, advisor_id)
+        if not advisor:
+            return jsonify({'error': 'Advisor not found'}), 404
+        
+        try:
+            # Use the new method to set yearly goal (handles both team and individual goals)
+            advisor.set_yearly_goal_for_company(company, float(yearly_goal))
             
-            if not advisor_id or yearly_goal is None:
-                return jsonify({'error': 'Advisor ID and yearly goal are required'}), 400
+            return jsonify({
+                'success': True, 
+                'message': f'Updated {advisor.full_name}\'s yearly goal to £{yearly_goal:,.0f} for {company.upper()}'
+            })
+        except ValueError:
+            return jsonify({'error': 'Invalid yearly goal value'}), 400
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': f'Failed to update goal: {str(e)}'}), 500
+    
+    def update_user_credentials(self):
+        """Update user's email, username, and optionally password"""
+        data = request.get_json()
+        user_id = data.get('user_id')
+        new_email = data.get('email', '').strip()
+        new_username = data.get('username', '').strip()
+        new_password = data.get('password', '').strip()
+        
+        if not user_id or not new_email or not new_username:
+            return jsonify({'error': 'User ID, email, and username are required'}), 400
+        
+        advisor = db.session.get(Advisor, user_id)
+        if not advisor:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Check if username already exists (excluding current user)
+        existing_username = Advisor.query.filter(
+            Advisor.username == new_username,
+            Advisor.id != user_id
+        ).first()
+        
+        if existing_username:
+            return jsonify({'error': 'Username already exists'}), 400
+        
+        # Check if email already exists (excluding current user)
+        existing_email = Advisor.query.filter(
+            Advisor.email == new_email,
+            Advisor.id != user_id
+        ).first()
+        
+        if existing_email:
+            return jsonify({'error': 'Email already exists'}), 400
+        
+        try:
+            # Update credentials
+            advisor.email = new_email
+            advisor.username = new_username
             
-            advisor = db.session.get(Advisor, advisor_id)
-            if not advisor:
-                return jsonify({'error': 'Advisor not found'}), 404
+            # Update password if provided
+            if new_password:
+                from werkzeug.security import generate_password_hash
+                advisor.password_hash = generate_password_hash(new_password)
             
-            try:
-                # Use the new method to set yearly goal (handles both team and individual goals)
-                advisor.set_yearly_goal_for_company(company, float(yearly_goal))
-                
-                return jsonify({
-                    'success': True, 
-                    'message': f'Updated {advisor.full_name}\'s yearly goal to £{yearly_goal:,.0f} for {company.upper()}'
-                })
-            except ValueError:
-                return jsonify({'error': 'Invalid yearly goal value'}), 400
-            except Exception as e:
-                db.session.rollback()
-                return jsonify({'error': f'Failed to update goal: {str(e)}'}), 500
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Successfully updated credentials for {advisor.full_name}'
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': f'Failed to update credentials: {str(e)}'}), 500
+
+    def reset_user_password(self):
+        """Reset user's password to a default value"""
+        data = request.get_json()
+        user_id = data.get('user_id')
+        new_password = data.get('password', 'password123')  # Default password
+        
+        if not user_id:
+            return jsonify({'error': 'User ID is required'}), 400
+        
+        advisor = db.session.get(Advisor, user_id)
+        if not advisor:
+            return jsonify({'error': 'User not found'}), 404
+        
+        try:
+            from werkzeug.security import generate_password_hash
+            advisor.password_hash = generate_password_hash(new_password)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Password reset for {advisor.full_name}',
+                'new_password': new_password
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': f'Failed to reset password: {str(e)}'}), 500
+
+    def get_user_details(self, user_id):
+        """Get user details for editing"""
+        advisor = db.session.get(Advisor, user_id)
+        if not advisor:
+            return jsonify({'error': 'User not found'}), 404
+        
+        return jsonify({
+            'id': advisor.id,
+            'full_name': advisor.full_name,
+            'username': advisor.username,
+            'email': advisor.email,
+            'is_master': advisor.is_master
+        })
+
+    def debug_referrals(self):
+        """Debug endpoint to check referral data"""
+        current_company = SessionManager.get_current_company(session)
+        
+        # Import Submission model
+        from app.models.submission import Submission
+        
+        # Get all submissions for debugging
+        all_submissions = Submission.query.filter_by(company=current_company).all()
+        
+        # Get referral submissions
+        referral_submissions = [s for s in all_submissions if s.business_type and 'referral' in s.business_type.lower()]
+        
+        # Get current user's submissions  
+        user = self.get_current_user()
+        user_submissions = [s for s in all_submissions if s.advisor_name == user.full_name]
+        user_referrals = [s for s in user_submissions if s.business_type and 'referral' in s.business_type.lower()]
+        
+        # Get all unique business types
+        business_types = list(set([s.business_type for s in all_submissions]))
+        
+        debug_data = {
+            'total_submissions': len(all_submissions),
+            'referral_submissions_count': len(referral_submissions),
+            'user_submissions_count': len(user_submissions), 
+            'user_referrals_count': len(user_referrals),
+            'all_business_types': business_types,
+            'referral_submissions': [
+                {
+                    'advisor_name': s.advisor_name,
+                    'business_type': s.business_type,
+                    'referral_to': s.referral_to,
+                    'customer_name': s.customer_name,
+                    'date': s.submission_date.strftime('%Y-%m-%d')
+                } for s in referral_submissions
+            ],
+            'user_referrals': [
+                {
+                    'business_type': s.business_type,
+                    'referral_to': s.referral_to,
+                    'customer_name': s.customer_name,
+                    'date': s.submission_date.strftime('%Y-%m-%d')
+                } for s in user_referrals
+            ]
+        }
+        
+        return jsonify(debug_data)
+    
+    def debug_dashboard_calculation(self):
+        """Debug the actual dashboard calculation"""
+        user = self.get_current_user()
+        current_company = SessionManager.get_current_company(session)
+        period = request.args.get('period', 'month')
+        start_str = request.args.get('start')
+        end_str = request.args.get('end')
+        
+        start_date, end_date = DateService.resolve_period_dates(period, start_str, end_str)
+        
+        # Get the same data the dashboard uses
+        metrics = user.calculate_metrics_for_period(
+            current_company, start_date, end_date,
+            config_manager.get_valid_business_types(current_company),
+            config_manager.get_valid_paid_case_types(current_company)
+        )
+        
+        # Debug referrals received calculation
+        referrals_received = 0
+        matching_referrals = []
+        is_recipient = ReferralRecipient.is_referral_recipient(user.id, current_company)
+        
+        if is_recipient:
+            from app.models.submission import Submission
+            all_referrals = Submission.query.filter(
+                Submission.company == current_company,
+                Submission.submission_date >= start_date,
+                Submission.submission_date <= end_date,
+                Submission.business_type == 'Referral'
+            ).all()
+            
+            for referral in all_referrals:
+                if self._check_referral_match(referral.referral_to, user.full_name):
+                    referrals_received += 1
+                    matching_referrals.append({
+                        'customer_name': referral.customer_name,
+                        'advisor_name': referral.advisor_name,
+                        'referral_to': referral.referral_to,
+                        'date': referral.submission_date.strftime('%Y-%m-%d')
+                    })
+        
+        # Get user's raw submissions for the period (referrals MADE by this user)
+        user_submissions = user.get_submissions_for_period(current_company, start_date, end_date)
+        user_referrals = [s for s in user_submissions if s.business_type == 'Referral']
+        
+        debug_data = {
+            'user': user.full_name,
+            'company': current_company,
+            'period': period,
+            'start_date': start_date.strftime('%Y-%m-%d'),
+            'end_date': end_date.strftime('%Y-%m-%d'),
+            'is_referral_recipient': is_recipient,
+            'calculated_metrics': metrics,
+            'referrals_received_calculated': referrals_received,
+            'matching_referrals': matching_referrals,
+            'user_referrals_made_in_period': len(user_referrals),
+            'user_referrals_made_details': [
+                {
+                    'customer_name': r.customer_name,
+                    'referral_to': r.referral_to,
+                    'date': r.submission_date.strftime('%Y-%m-%d')
+                } for r in user_referrals
+            ],
+            'name_mappings': self._get_referral_name_mappings(),
+            'valid_business_types': config_manager.get_valid_business_types(current_company)
+        }
+        
+        return jsonify(debug_data)
+
+    def get_performance_boxplot(self):
+        """Get box plot performance data for current user"""
+        user = self.get_current_user()
+        if not user:
+            return jsonify({'periods': [], 'values': [], 'monthly_goals': [], 'current_total': 0, 'monthly_goal': 0})
+
+        current_company = SessionManager.get_current_company(session)
+        metric_type = request.args.get('type', 'submitted')
+        period = request.args.get('period', 'month')
+        start_str = request.args.get('start')
+        end_str = request.args.get('end')
+        
+        analytics_service = AnalyticsService(current_company)
+        boxplot_data = analytics_service.get_advisor_performance_boxplot(
+            user, period, metric_type, start_str, end_str
+        )
+        
+        return jsonify(boxplot_data)
+
+    def get_advisor_performance_boxplot(self, advisor_id):
+        """Get box plot performance data for a specific advisor (master only)"""
+        advisor = db.session.get(Advisor, advisor_id)
+        if not advisor:
+            return jsonify({'periods': [], 'values': [], 'monthly_goals': [], 'current_total': 0, 'monthly_goal': 0})
+
+        current_company = SessionManager.get_current_company(session)
+        metric_type = request.args.get('type', 'submitted')
+        period = request.args.get('period', 'month')
+        start_str = request.args.get('start')
+        end_str = request.args.get('end')
+        
+        analytics_service = AnalyticsService(current_company)
+        boxplot_data = analytics_service.get_advisor_performance_boxplot(
+            advisor, period, metric_type, start_str, end_str
+        )
+        
+        return jsonify(boxplot_data)
+    
+    def advisor_sync(self):
+        """Sync data for regular advisors (not master restricted)"""
+        current_company = SessionManager.get_current_company(session)
+        sync_service = DataSyncService(current_company)
+        submissions_added, paid_cases_added, success, error = sync_service.perform_sync()
+        
+        if success:
+            return jsonify({
+                'success': True, 
+                'message': f'Sync completed for {current_company}',
+                'submissions_added': submissions_added,
+                'paid_cases_added': paid_cases_added
+            })
+        else:
+            return jsonify({'error': f'Sync failed: {error}'}), 500
+        
+
+    def debug_all_referrals(self):
+        """Debug endpoint to see all referral data"""
+        current_company = SessionManager.get_current_company(session)
+        
+        from app.models.submission import Submission
+        
+        # Get all referrals in the system
+        all_referrals = Submission.query.filter(
+            Submission.company == current_company,
+            Submission.business_type == 'Referral'
+        ).all()
+        
+        # Get all referral recipients
+        recipients = ReferralRecipient.get_recipients_for_company(current_company)
+        
+        # Get all advisors
+        all_advisors = Advisor.query.all()
+        
+        debug_data = {
+            'total_referrals_in_db': len(all_referrals),
+            'total_recipients_configured': len(recipients),
+            'total_advisors': len(all_advisors),
+            'company': current_company,
+            'all_referrals': [
+                {
+                    'id': r.id,
+                    'advisor_name': r.advisor_name,
+                    'business_type': r.business_type,
+                    'referral_to': r.referral_to,
+                    'customer_name': r.customer_name,
+                    'date': r.submission_date.strftime('%Y-%m-%d'),
+                    'company': r.company
+                } for r in all_referrals
+            ],
+            'configured_recipients': [
+                {
+                    'advisor_id': rec.advisor_id,
+                    'advisor_name': rec.advisor.full_name,
+                    'company': rec.company,
+                    'is_active': rec.is_active
+                } for rec in recipients
+            ],
+            'all_advisors': [
+                {
+                    'id': adv.id,
+                    'full_name': adv.full_name,
+                    'is_master': adv.is_master
+                } for adv in all_advisors
+            ]
+        }
+        
+        return jsonify(debug_data)

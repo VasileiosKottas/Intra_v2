@@ -27,7 +27,8 @@ class Team(BaseModel):
     is_hidden = db.Column(db.Boolean, default=False)
     
     # Relationships
-    creator = db.relationship('Advisor', foreign_keys=[created_by], post_update=True)
+    creator = db.relationship('Advisor', foreign_keys=[created_by])
+
     advisor_memberships = db.relationship('AdvisorTeam', backref='team', cascade='all, delete-orphan')
     
     @property

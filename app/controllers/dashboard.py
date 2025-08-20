@@ -16,7 +16,9 @@ class DashboardController(BaseController):
     
     def index(self):
         """Main dashboard view"""
+
         user = self.get_current_user()
+        
         if not user:
             session.clear()
             return redirect(url_for('auth.login'))

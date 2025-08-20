@@ -1,5 +1,6 @@
+
 """
-Authentication controller
+Authentication controller 
 """
 
 from flask import render_template, request, session, redirect, url_for
@@ -23,7 +24,7 @@ class AuthController(BaseController):
         if request.method == 'POST':
             username = request.form['username']
             password = request.form['password']
-            
+                        
             user = Advisor.query.filter_by(username=username).first()
             
             if user and check_password_hash(user.password_hash, password):

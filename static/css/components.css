@@ -114,6 +114,8 @@
     letter-spacing: 0.3px;
     display: inline-block;
     white-space: nowrap;
+    min-width: 70px;
+    text-align: center;
 }
 
 .status-pending {

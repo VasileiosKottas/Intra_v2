@@ -136,8 +136,10 @@ class Advisor(BaseModel):
         
         # Filter submissions for valid business types and referrals
         valid_submissions = [s for s in submissions if valid_submission_types and s.business_type in valid_submission_types]
-        referrals = [s for s in submissions if s.business_type and s.business_type.startswith('Referral')]
         
+        # Count referrals separately - get ALL submissions without any business type filtering
+        all_user_submissions = self.get_submissions_for_period(company, start_date, end_date, None)
+        referrals_made = len([s for s in all_user_submissions if s.business_type == 'Referral'])
         # Calculate totals
         total_submitted = sum((s.expected_proc or 0) + (s.expected_fee or 0) for s in valid_submissions)
         total_fee = sum(s.expected_fee or 0 for s in valid_submissions)
@@ -157,7 +159,7 @@ class Advisor(BaseModel):
             'total_paid': total_paid,
             'payment_percentage': (total_paid / total_submitted * 100) if total_submitted > 0 else 0,
             'applications': applications,
-            'referrals_made': len(referrals),
+            'referrals_made': referrals_made,  # FIXED: Use correct referral count
             'submissions_count': len(valid_submissions),
             'paid_cases_count': len(paid_cases)
         }

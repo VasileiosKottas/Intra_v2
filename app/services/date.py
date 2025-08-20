@@ -31,8 +31,9 @@ class DateService:
         
         if period == 'quarter': 
             return today - timedelta(days=90), today
-        elif period == 'year':    
-            return today - timedelta(days=365), today
+        elif period == 'year':
+            start = today.replace(month=1, day=1)
+            return start, today
         else:  # month to date (default)
             return today.replace(day=1), today
     

@@ -611,3 +611,472 @@
         transform: none;
     }
 }
+
+
+/* Add these styles to your main-styles/* Chart Statistics Bar */
+.chart-stats {
+    display: flex;
+    justify-content: space-around;
+    padding: 1rem 0;
+    border-top: 1px solid #e5e7eb;
+    flex-wrap: wrap;
+    gap: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-top: 1rem;
+}
+
+.chart-stat {
+    text-align: center;
+    flex: 1;
+    min-width: 120px;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-bottom: 0.25rem;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #122747;
+}
+
+/* Team Section Styling */
+.team-section {
+    min-height: 600px;
+}
+
+.team-section .section-card {
+    height: 100%;
+}
+
+/* Goals and Cases Section */
+.goals-cases-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Goal Cards Styling */
+.goal-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.goal-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.goal-header h4 {
+    margin: 0 0 1rem 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.goal-content {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+/* Team Goal - Circular Progress */
+.goal-progress-circle {
+    flex-shrink: 0;
+}
+
+.circle-progress {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: conic-gradient(#3498db 0deg, #e5e7eb 0deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: background 0.3s ease;
+}
+
+.circle-progress::before {
+    content: '';
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: white;
+    position: absolute;
+}
+
+.progress-text {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #2c3e50;
+    z-index: 1;
+}
+
+/* Yearly Goal - Linear Progress */
+.goal-progress-bar {
+    flex: 1;
+}
+
+.progress-bar-container {
+    height: 12px;
+    background: #e5e7eb;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3498db, #2ecc71);
+    border-radius: 6px;
+    transition: width 0.3s ease;
+}
+
+.progress-percentage {
+    text-align: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+/* Goal Details */
+.goal-details {
+    flex: 1;
+}
+
+.goal-stat {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.goal-label {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.goal-value {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+/* Cases Section */
+.cases-section {
+    flex: 1;
+    min-height: 300px;
+}
+
+.cases-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-select {
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.refresh-btn {
+    padding: 0.5rem;
+    border: none;
+    background: #122747;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    min-width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.refresh-btn:hover {
+    background: #284e86;
+}
+
+.refresh-icon {
+    font-size: 0.875rem;
+}
+
+/* Cases Table */
+.cases-table-container {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-top: 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+
+.cases-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    background: white;
+}
+
+.cases-table th {
+    background: #f8f9fa;
+    padding: 0.75rem 0.5rem;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 1px solid #e5e7eb;
+    position: sticky;
+    top: 0;
+    color: #2c3e50;
+}
+
+.cases-table td {
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid #f1f3f4;
+    vertical-align: top;
+}
+
+.cases-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.cases-loading {
+    text-align: center;
+    color: #64748b;
+    font-style: italic;
+    padding: 2rem;
+}
+
+/* Responsive Design Updates */
+@media (max-width: 768px) {
+    .content-grid-two-col {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .performance-chart-section .chart-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .performance-chart-section .chart-title {
+        text-align: center;
+    }
+    
+    .chart-stats {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .chart-stat {
+        min-width: auto;
+    }
+    
+    .goal-content {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+        gap: 1rem;
+    }
+    
+    .goal-progress-circle {
+        align-self: center;
+    }
+    
+    .cases-controls {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .filter-select {
+        flex: 1;
+        min-width: 120px;
+    }
+    
+    .cases-table-container {
+        font-size: 0.8rem;
+    }
+    
+    .cases-table th,
+    .cases-table td {
+        padding: 0.5rem 0.25rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .performance-chart-section {
+        padding: 1rem;
+    }
+    
+    .performance-chart-section .chart-container {
+        height: 300px;
+    }
+    
+    .goal-card {
+        padding: 1rem;
+    }
+    
+    .circle-progress {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .circle-progress::before {
+        width: 45px;
+        height: 45px;
+    }
+    
+    .progress-text {
+        font-size: 0.75rem;
+    }
+}
+
+/* Enhanced Section Card for Team */
+.team-section .section-card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.team-section .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.team-section .section-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 0;
+}
+
+#team-leaderboard {
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* Loading Animation Enhancement */
+.loading {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 150px;
+    color: #7f8c8d;
+    text-align: center;
+    padding: 1rem;
+}
+
+.loading::before {
+    content: '';
+    width: 32px;
+    height: 32px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}css or metrics.css file */
+
+/* Update existing content-grid to be two-column when needed */
+.content-grid-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+/* Full-width Performance Chart Section */
+.performance-chart-section {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.performance-chart-section .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.performance-chart-section .chart-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 0;
+}
+
+.performance-chart-section .chart-controls {
+    display: flex;
+    gap: 0.5rem;
+    background: #f8f9fa;
+    padding: 0.25rem;
+    border-radius: 8px;
+}
+
+.performance-chart-section .chart-btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    color: #64748b;
+}
+
+.performance-chart-section .chart-btn.active {
+    background: white;
+    color: #122747;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.performance-chart-section .chart-container {
+    height: 400px;
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+

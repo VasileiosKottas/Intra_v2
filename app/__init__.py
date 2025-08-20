@@ -1,3 +1,5 @@
+# Update your app/__init__.py file - the issue is in the session configuration
+
 """
 Sales Dashboard Application Package
 Entry point for the Flask application with factory pattern
@@ -11,7 +13,6 @@ def create_app(config_name='development'):
     """Application factory function"""
     
     # Get the correct template and static directories
-    # This ensures Flask looks in the right place for templates and static files
     template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'templates'))
     static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'static'))
     
@@ -19,11 +20,11 @@ def create_app(config_name='development'):
                 template_folder=template_dir,
                 static_folder=static_dir)
     
-    # Load configuration
+    # Load configuration FIRST
     load_config(app, config_name)
     
-    # ADD IFRAME SESSION SUPPORT HERE:
-    configure_iframe_support(app)
+    # FIXED: Configure iframe support AFTER loading config
+    configure_iframe_support(app, config_name)
     
     # Setup CORS with iframe support
     setup_cors(app)
@@ -42,16 +43,25 @@ def create_app(config_name='development'):
     
     return app
 
-def configure_iframe_support(app):
+def configure_iframe_support(app, config_name):
     """Configure Flask for iframe embedding support"""
     
-    # Session configuration for iframe compatibility
-    app.config['SESSION_COOKIE_SAMESITE'] = 'None'
-    app.config['SESSION_COOKIE_SECURE'] = True  # Requires HTTPS
-    app.config['SESSION_COOKIE_HTTPONLY'] = True
-    app.config['SESSION_COOKIE_DOMAIN'] = None  # Allow cross-domain
-    
-    print("✓ Configured iframe session support")
+    # FIXED: Only use SameSite=None in production or when explicitly needed for iframes
+    # For local development, use normal session settings
+    if config_name == 'production' or os.getenv('ENABLE_IFRAME_MODE') == 'true':
+        # Session configuration for iframe compatibility (production only)
+        app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+        app.config['SESSION_COOKIE_SECURE'] = True  # Requires HTTPS
+        app.config['SESSION_COOKIE_HTTPONLY'] = True
+        app.config['SESSION_COOKIE_DOMAIN'] = None  # Allow cross-domain
+        print("✓ Configured iframe session support (production mode)")
+    else:
+        # Normal session configuration for development
+        app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # FIXED: Use Lax instead of None
+        app.config['SESSION_COOKIE_SECURE'] = False     # FIXED: False for HTTP in dev
+        app.config['SESSION_COOKIE_HTTPONLY'] = True
+        app.config['SESSION_COOKIE_DOMAIN'] = None
+        print("✓ Configured normal session support (development mode)")
 
 def setup_cors(app):
     """Setup CORS with iframe and credentials support"""
@@ -112,13 +122,9 @@ def load_config(app, config_name='development'):
         'development': {
             'DEBUG': True,
             'SQLALCHEMY_DATABASE_URI': f"sqlite:///{db_path}",
-            'SECRET_KEY': os.getenv('SECRET_KEY', 'dev-secret-key'),
+            'SECRET_KEY': os.getenv('SECRET_KEY', 'dev-secret-key-change-this-in-production'),
             'SQLALCHEMY_TRACK_MODIFICATIONS': False,
-            # Session configuration for iframe support
-            'SESSION_COOKIE_SAMESITE': 'None',
-            'SESSION_COOKIE_SECURE': True,
-            'SESSION_COOKIE_HTTPONLY': True,
-            'SESSION_COOKIE_DOMAIN': None,
+            # FIXED: Don't set session config here - do it in configure_iframe_support
         },
         'testing': {
             'TESTING': True,
@@ -131,11 +137,7 @@ def load_config(app, config_name='development'):
             'SQLALCHEMY_DATABASE_URI': os.getenv('DATABASE_URL', f"sqlite:///{db_path}"),
             'SECRET_KEY': os.getenv('SECRET_KEY'),
             'SQLALCHEMY_TRACK_MODIFICATIONS': False,
-            # Session configuration for iframe support
-            'SESSION_COOKIE_SAMESITE': 'None',
-            'SESSION_COOKIE_SECURE': True,
-            'SESSION_COOKIE_HTTPONLY': True,
-            'SESSION_COOKIE_DOMAIN': None,
+            # FIXED: Don't set session config here - do it in configure_iframe_support
         }
     }
     
@@ -143,4 +145,3 @@ def load_config(app, config_name='development'):
     print(f"✓ Loaded {config_name} configuration")
     print(f"✓ Template folder: {app.template_folder}")
     print(f"✓ Static folder: {app.static_folder}")
-    print(f"✓ Session config applied for iframe support")

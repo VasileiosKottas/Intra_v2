@@ -1,0 +1,461 @@
+/* dashboard-enhanced.css - Enhanced Dashboard Styles */
+
+/* Full-width Performance Chart Section */
+.performance-chart-section {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    grid-column: 1 / -1;
+}
+
+.performance-chart-section .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.performance-chart-section .chart-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 0;
+}
+
+.performance-chart-section .chart-controls {
+    display: flex;
+    gap: 0.5rem;
+    background: #f8f9fa;
+    padding: 0.25rem;
+    border-radius: 8px;
+}
+
+.performance-chart-section .chart-btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    color: #64748b;
+}
+
+.performance-chart-section .chart-btn.active {
+    background: white;
+    color: #122747;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.performance-chart-section .chart-container {
+    height: 400px;
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.chart-stats {
+    display: flex;
+    justify-content: space-around;
+    padding: 1rem 0;
+    border-top: 1px solid #e5e7eb;
+    flex-wrap: wrap;
+    gap: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-top: 1rem;
+}
+
+.chart-stat {
+    text-align: center;
+    flex: 1;
+    min-width: 120px;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-bottom: 0.25rem;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #122747;
+}
+
+.performance-chart-section + .content-grid {
+    margin-top: 0;
+}
+
+/* Two Column Layout for Team Data */
+.dashboard-two-column {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    width: 100%;
+}
+
+.left-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.right-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.left-column .leaderboard-section {
+    flex: 1;
+    min-height: 500px;
+    max-height: 700px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.leaderboard-section .leaderboard-header {
+    flex-shrink: 0;
+}
+
+.leaderboard-section .leaderboard-table {
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* Combined Goals Section in Right Column */
+.combined-goals-section {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    height: fit-content;
+}
+
+.team-target-part {
+    margin-bottom: 1.5rem;
+}
+
+.team-target-part h3 {
+    color: #2c3e50;
+    margin-bottom: 1.5rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.goals-divider {
+    height: 2px;
+    background: linear-gradient(90deg, #f8f9fa 0%, #667eea 50%, #f8f9fa 100%);
+    margin: 1.5rem 0;
+    border-radius: 1px;
+}
+
+.user-yearly-goal-part {
+    background: transparent;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+}
+
+.user-yearly-goal-part h4 {
+    margin: 0 0 1rem 0;
+    text-align: center;
+    font-size: 1.1rem;
+    color: #2c3e50;
+}
+
+.user-yearly-goal-part .goal-progress {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.user-yearly-goal-part .goal-percentage {
+    font-weight: 700;
+    color: #667eea;
+    font-size: 2rem;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.user-yearly-goal-part .goal-details {
+    display: grid;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+    color: #7f8c8d;
+    text-align: left;
+}
+
+.user-yearly-goal-part .goal-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.user-yearly-goal-part .goal-row span:first-child {
+    font-weight: 500;
+}
+
+.user-yearly-goal-part .goal-row span:last-child {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+/* Full Width Cases Section */
+.cases-section-fullwidth {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    max-height: 600px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    width: 100%;
+}
+
+.cases-section-fullwidth .cases-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    flex-shrink: 0;
+    background: white;
+    z-index: 20;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f8f9fa;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.cases-section-fullwidth .cases-title {
+    font-size: 1.3rem;
+    color: #2c3e50;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+    line-height: 1.2;
+}
+
+.cases-section-fullwidth .cases-filters {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.cases-section-fullwidth .cases-table-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto;
+    min-height: 300px;
+    max-height: 450px;
+    border: 1px solid #f1f3f4;
+    border-radius: 12px;
+    position: relative;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .performance-chart-section .chart-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .performance-chart-section .chart-title {
+        text-align: center;
+    }
+    
+    .chart-stats {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .chart-stat {
+        min-width: auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .performance-chart-section {
+        padding: 1rem;
+    }
+    
+    .performance-chart-section .chart-container {
+        height: 300px;
+    }
+}
+
+@media (max-width: 1024px) {
+    .dashboard-two-column {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .left-column .leaderboard-section {
+        min-height: 400px;
+        max-height: 500px;
+    }
+    
+    .cases-section-fullwidth {
+        margin-top: 1.5rem;
+        max-height: 400px;
+    }
+    
+    .cases-section-fullwidth .cases-table-container {
+        max-height: 300px;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-two-column {
+        gap: 1rem;
+    }
+    
+    .left-column,
+    .right-column {
+        gap: 1rem;
+    }
+    
+    .left-column .leaderboard-section {
+        min-height: 350px;
+        max-height: 400px;
+    }
+    
+    .cases-section-fullwidth {
+        margin-top: 1rem;
+        max-height: 350px;
+    }
+    
+    .cases-section-fullwidth .cases-table-container {
+        max-height: 250px;
+    }
+    
+    .cases-section-fullwidth .cases-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .cases-section-fullwidth .cases-title {
+        width: 100%;
+    }
+    
+    .cases-section-fullwidth .cases-filters {
+        width: 100%;
+        justify-content: flex-start;
+        gap: 0.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .left-column .leaderboard-section {
+        min-height: 300px;
+        max-height: 350px;
+    }
+    
+    .cases-section-fullwidth {
+        padding: 1rem;
+        max-height: 300px;
+    }
+    
+    .cases-section-fullwidth .cases-table-container {
+        max-height: 200px;
+    }
+    
+    .combined-goals-section {
+        padding: 1rem;
+    }
+    
+    .goals-divider {
+        margin: 1rem 0;
+    }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+    .dashboard-two-column {
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+    
+    .left-column .leaderboard-section {
+        min-height: 250px;
+        max-height: 300px;
+    }
+    
+    .cases-section-fullwidth {
+        margin-top: 1rem;
+        max-height: 200px;
+    }
+    
+    .cases-section-fullwidth .cases-table-container {
+        max-height: 120px;
+    }
+    
+    .combined-goals-section {
+        padding: 0.75rem;
+    }
+    
+    .goals-divider {
+        margin: 0.75rem 0;
+    }
+}
+
+@media (min-width: 1200px) {
+    .dashboard-two-column {
+        grid-template-columns: 2.5fr 1fr;
+        gap: 2.5rem;
+    }
+    
+    .left-column .leaderboard-section {
+        min-height: 600px;
+        max-height: 800px;
+    }
+    
+    .cases-section-fullwidth {
+        margin-top: 2.5rem;
+        max-height: 500px;
+    }
+    
+    .cases-section-fullwidth .cases-table-container {
+        max-height: 400px;
+    }
+}
+
+@media (min-width: 1400px) {
+    .dashboard-two-column {
+        grid-template-columns: 2fr 1fr;
+        gap: 3rem;
+    }
+    
+    .cases-section-fullwidth {
+        margin-top: 3rem;
+    }
+}
