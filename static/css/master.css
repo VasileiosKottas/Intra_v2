@@ -613,3 +613,142 @@ body {
     margin-bottom: 1rem;
     border-left: 4px solid #dc3545;
 }
+
+.tab-navigation {
+    display: flex;
+    border-bottom: 2px solid #e1e8ed;
+    margin-bottom: 1.5rem;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    font-weight: 500;
+    color: #7f8c8d;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.tab-btn:hover {
+    color: #2c3e50;
+    background: #f8f9fa;
+}
+
+.tab-btn.active {
+    color: #2c3e50;
+    border-bottom-color: #667eea;
+    background: #f8f9fa;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.mapping-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: white;
+    border: 1px solid #e1e8ed;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.mapping-item:hover {
+    border-color: #667eea;
+    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.1);
+}
+
+.mapping-info {
+    flex: 1;
+}
+
+.mapping-name {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.25rem;
+}
+
+.mapping-target {
+    font-size: 0.9rem;
+    color: #667eea;
+}
+
+.unmapped-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: #fff9e6;
+    border: 1px solid #f39c12;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.unmapped-item:hover {
+    background: #fff3d6;
+    border-color: #e67e22;
+}
+
+.unmapped-name {
+    font-weight: 500;
+    color: #d35400;
+}
+
+.quick-map-btn {
+    background: #f39c12;
+    color: white;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.quick-map-btn:hover {
+    background: #e67e22;
+}
+
+#mappings-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+#unmapped-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Scrollbar styles */
+#mappings-list::-webkit-scrollbar,
+#unmapped-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+#mappings-list::-webkit-scrollbar-track,
+#unmapped-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+#mappings-list::-webkit-scrollbar-thumb,
+#unmapped-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+#mappings-list::-webkit-scrollbar-thumb:hover,
+#unmapped-list::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}

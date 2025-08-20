@@ -500,6 +500,9 @@
         let currentCompany = '{{ session.get("company_mode", "windsor") }}';
         let referralRecipients = [];
         let advisorsList = [];
+        let currentTab = 'recipients';
+        let referralMappings = [];
+        let unmappedReferrals = [];
 
         // Company switching function
         async function switchCompany() {
@@ -898,6 +901,195 @@
             });
             
             console.log('Loaded advisors:', advisorsList);
+        }
+
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            // Update save button visibility
+            const saveBtn = document.getElementById('save-recipients-btn');
+            saveBtn.style.display = tabName === 'recipients' ? 'inline-block' : 'none';
+            
+            currentTab = tabName;
+            
+            // Load data for the active tab
+            if (tabName === 'mappings') {
+                loadReferralMappings();
+            } else if (tabName === 'unmapped') {
+                loadUnmappedReferrals();
+            }
+        }
+
+        // Referral mappings management
+        async function loadReferralMappings() {
+            try {
+                const response = await fetch('/api/referral-mappings');
+                if (response.ok) {
+                    referralMappings = await response.json();
+                    displayReferralMappings();
+                } else {
+                    console.error('Failed to load referral mappings');
+                }
+            } catch (error) {
+                console.error('Error loading referral mappings:', error);
+            }
+        }
+
+        function displayReferralMappings() {
+            const container = document.getElementById('mappings-list');
+            
+            if (referralMappings.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">🔗</div>
+                        <p>No referral mappings configured yet.</p>
+                        <p style="font-size: 0.9rem; margin-top: 0.5rem;">Add mappings to help the system recognize referral names.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = referralMappings.map(mapping => `
+                <div class="mapping-item">
+                    <div class="mapping-info">
+                        <div class="mapping-name">"${mapping.referral_name}"</div>
+                        <div class="mapping-target">→ ${mapping.advisor_name}</div>
+                    </div>
+                    <button class="btn-sm btn-delete" onclick="removeMapping(${mapping.id}, '${mapping.referral_name}')">
+                        🗑️ Remove
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function showAddMappingForm() {
+            // Populate advisor dropdown
+            const select = document.getElementById('new-mapping-advisor');
+            select.innerHTML = '<option value="">Select advisor...</option>' + 
+                advisorsList.map(advisor => `<option value="${advisor.id}">${advisor.name}</option>`).join('');
+            
+            document.getElementById('add-mapping-form').style.display = 'block';
+            document.getElementById('new-referral-name').focus();
+        }
+
+        function hideAddMappingForm() {
+            document.getElementById('add-mapping-form').style.display = 'none';
+            document.getElementById('new-referral-name').value = '';
+            document.getElementById('new-mapping-advisor').value = '';
+        }
+
+        async function addMapping() {
+            const referralName = document.getElementById('new-referral-name').value.trim();
+            const advisorId = document.getElementById('new-mapping-advisor').value;
+            
+            if (!referralName || !advisorId) {
+                alert('Please fill in both fields');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/referral-mappings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        referral_name: referralName,
+                        advisor_id: parseInt(advisorId)
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(result.message);
+                    hideAddMappingForm();
+                    loadReferralMappings();
+                    // Also refresh unmapped list if it's loaded
+                    if (unmappedReferrals.length > 0) {
+                        loadUnmappedReferrals();
+                    }
+                } else {
+                    alert('Error: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error adding mapping: ' + error.message);
+            }
+        }
+
+        async function removeMapping(mappingId, referralName) {
+            if (!confirm(`Are you sure you want to remove the mapping for "${referralName}"?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/referral-mappings/${mappingId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(result.message);
+                    loadReferralMappings();
+                } else {
+                    alert('Error: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error removing mapping: ' + error.message);
+            }
+        }
+
+        // Unmapped referrals management
+        async function loadUnmappedReferrals() {
+            try {
+                const response = await fetch('/api/unmapped-referrals');
+                if (response.ok) {
+                    unmappedReferrals = await response.json();
+                    displayUnmappedReferrals();
+                } else {
+                    console.error('Failed to load unmapped referrals');
+                }
+            } catch (error) {
+                console.error('Error loading unmapped referrals:', error);
+            }
+        }
+
+        function displayUnmappedReferrals() {
+            const container = document.getElementById('unmapped-list');
+            
+            if (unmappedReferrals.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+                        <p>All referral names have been mapped!</p>
+                        <p style="font-size: 0.9rem; margin-top: 0.5rem;">No unmapped referrals found in your submissions.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = unmappedReferrals.map(referralName => `
+                <div class="unmapped-item" onclick="quickMap('${referralName}')">
+                    <div class="unmapped-name">"${referralName}"</div>
+                    <button class="quick-map-btn" onclick="event.stopPropagation(); quickMap('${referralName}')">
+                        Quick Map
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function quickMap(referralName) {
+            // Pre-fill the add mapping form and switch to mappings tab
+            document.getElementById('new-referral-name').value = referralName;
+            switchTab('mappings');
+            showAddMappingForm();
         }
 
         function openReferralModal() {
