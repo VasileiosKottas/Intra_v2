@@ -1,5 +1,5 @@
 """
-Base controller with common functionality
+Base controller with common functionality - Updated for multiple teams
 """
 
 from flask import session, request, jsonify, redirect, url_for
@@ -63,18 +63,37 @@ class BaseController:
         return None
     
     def get_visible_team_members(self, user: Advisor, current_company: str) -> list:
-        """Get team members excluding those in hidden teams for regular users"""
-        user_team = user.get_team_for_company(current_company)
-        
+        """Get team members that the user should see (handles multiple teams and visibility)"""
         if user.is_master:
-            # Masters can see all team members
-            return user_team.members if user_team else []
+            # Masters can see all members from the user's primary team
+            primary_team = user.get_primary_team_for_company(current_company)
+            return primary_team.members if primary_team else []
         
-        if not user_team or user_team.is_hidden:
-            # If user is in a hidden team or no team, they only see themselves
+        # Get user's visible team (non-hidden)
+        visible_team = user.get_visible_team_for_company(current_company)
+        
+        if visible_team:
+            # User is in a visible team - show all members of that team
+            # but exclude members who are ONLY in hidden teams
+            visible_members = []
+            for member in visible_team.members:
+                if not member.is_in_hidden_team_only(current_company):
+                    visible_members.append(member)
+            return visible_members
+        else:
+            # User is only in hidden teams or no teams - only show themselves
             return [user]
+    
+    def get_user_display_team(self, user: Advisor, current_company: str):
+        """Get the team that should be displayed to the user"""
+        if user.is_master:
+            # Masters see the primary team
+            return user.get_primary_team_for_company(current_company)
         
-        # Regular team members see all non-hidden team members
-        return [member for member in user_team.members 
-                if not member.get_team_for_company(current_company) or 
-                not member.get_team_for_company(current_company).is_hidden]
+        # Regular users see their visible team, or their primary team if master is viewing
+        visible_team = user.get_visible_team_for_company(current_company)
+        if visible_team:
+            return visible_team
+        
+        # If only in hidden teams, return None so they see "Personal Goals"
+        return None

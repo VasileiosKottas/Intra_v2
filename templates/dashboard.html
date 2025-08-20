@@ -232,8 +232,6 @@
         .logo {
             transition: all 0.3s ease;
         }
-
-
     </style>
 </head>
 <body class="{{ 'cnc-theme' if session.get('company_mode', 'windsor') == 'cnc' else '' }}">
@@ -242,7 +240,6 @@
             <img src="{{ url_for('static', filename='images/' + ('CnC.png' if session.get('company_mode', 'windsor') == 'cnc' else company_config.logo)) }}"
                 alt="Company logo" class="logo {{ 'cnc-logo' if session.get('company_mode', 'windsor') == 'cnc' else '' }}" id="company-logo">
             <span id="suite-name">{{ 'CSuite' if session.get('company_mode', 'windsor') == 'cnc' else 'WinSuite' }}</span>
-            <!-- <span class="company-indicator" id="company-indicator">{{ 'C&C' if session.get('company_mode', 'windsor') == 'cnc' else 'Windsor' }}</span> -->
         </h1>
         <div class="user-info">
             <select id="company-selector" class="company-selector" onchange="switchCompany()">
@@ -347,182 +344,210 @@
             </div>
         </div>
 
-    <!-- Full-width Performance Chart Section -->
-    <div class="performance-chart-section">
-        <div class="chart-header">
-            <div class="chart-title">📈 Your Performance Timeline</div>
-            <div class="chart-controls">
-                <button class="chart-btn active" data-type="submitted">Total Submitted</button>
-                <button class="chart-btn" data-type="paid">Total Paid</button>
-            </div>
-        </div>
-        <div class="chart-container">
-            <canvas id="performance-chart"></canvas>
-        </div>
-        <div class="chart-stats">
-            <div class="chart-stat">
-                <span class="stat-label">Current Total:</span>
-                <span class="stat-value">£<span id="chart-total">0.00</span></span>
-            </div>
-            <div class="chart-stat">
-                <span class="stat-label">Best Period:</span>
-                <span class="stat-value">£<span id="chart-best">0.00</span></span>
-            </div>
-            <div class="chart-stat">
-                <span class="stat-label">Monthly Goal:</span>
-                <span class="stat-value">£<span id="monthly-goal">0.00</span></span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Two Column Layout for Team Data -->
-    <div class="dashboard-two-column">
-        <!-- Left Column - Team Leaderboard -->
-        <div class="left-column">
-            <div class="leaderboard-section">
-                <div class="leaderboard-header">
-                    <div class="leaderboard-title">🏆 Team Leaderboard</div>
-                    <button class="refresh-btn" onclick="refreshLeaderboard()">🔄 Refresh</button>
+        <!-- Full-width Performance Chart Section -->
+        <div class="performance-chart-section">
+            <div class="chart-header">
+                <div class="chart-title">📈 Your Performance Timeline</div>
+                <div class="chart-controls">
+                    <button class="chart-btn active" data-type="submitted">Total Submitted</button>
+                    <button class="chart-btn" data-type="paid">Total Paid</button>
                 </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="performance-chart"></canvas>
+            </div>
+            <div class="chart-stats">
+                <div class="chart-stat">
+                    <span class="stat-label">Current Total:</span>
+                    <span class="stat-value">£<span id="chart-total">0.00</span></span>
+                </div>
+                <div class="chart-stat">
+                    <span class="stat-label">Best Period:</span>
+                    <span class="stat-value">£<span id="chart-best">0.00</span></span>
+                </div>
+                <div class="chart-stat">
+                    <span class="stat-label">Monthly Goal:</span>
+                    <span class="stat-value">£<span id="monthly-goal">0.00</span></span>
+                </div>
+            </div>
+        </div>
 
-                <table class="leaderboard-table">
+        <!-- Two Column Layout for Team Data -->
+        <div class="dashboard-two-column">
+            <!-- Left Column - Team Leaderboard -->
+            <div class="left-column">
+                <div class="leaderboard-section">
+                    <div class="leaderboard-header">
+                        <div class="leaderboard-title">🏆 Team Leaderboard</div>
+                        <div class="leaderboard-controls">
+                            <!-- Team selector for users in multiple teams -->
+                            <select id="team-selector" class="team-selector" style="display: none;" onchange="switchTeamView()">
+                                <option value="">Select team to view...</option>
+                            </select>
+                            <button class="refresh-btn" onclick="refreshLeaderboard()">🔄 Refresh</button>
+                        </div>
+                    </div>
+
+                    <!-- Team visibility info -->
+                    <div id="team-visibility-info" class="team-info-banner" style="display: none;">
+                        <!-- Dynamic team information will be shown here -->
+                    </div>
+
+                    <table class="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Team Member</th>
+                                <th>Total Submitted</th>
+                                <th>Total Paid</th>
+                                <th>Avg Case Size</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-body">
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                                    <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+                                    <p>Loading team data...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Multiple teams indicator at bottom -->
+                    <div id="multiple-teams-footer" class="multiple-teams-footer" style="display: none;">
+                        <div class="teams-summary">
+                            <h4>📋 Your Team Memberships</h4>
+                            <div id="all-teams-list">
+                                <!-- Will be populated with user's teams -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Combined Goals Section -->
+            <div class="right-column">
+                <!-- Combined Team Target and User Yearly Goal Section -->
+                <div class="combined-goals-section">
+                    <!-- Team Monthly Goal -->
+                    <div class="team-target-part">
+                        <h3 id="team-target-title">🎯 Team Monthly Goal</h3>
+                        <div class="target-progress" style="display:flex; align-items:center; gap:10px;">
+                            <div class="progress-bar" style="flex:1;">
+                                <div class="progress-fill" id="team-progress-bar" style="width: 0%"></div>
+                            </div>
+                            <div class="target-percentage" id="team-progress"
+                                style="min-width:3.5ch; text-align:right; font-weight:600;">0%</div>
+                        </div>
+                        <div class="target-details">
+                            <div class="target-row">
+                                <span>🎯 Start:</span>
+                                <span>£0</span>
+                            </div>
+                            <div class="target-row">
+                                <span>📊 Team Monthly Goal:</span>
+                                <span><strong>£<span id="team-goal">50,000.00</span></strong></span>
+                            </div>
+                            <div class="target-row">
+                                <span>💰 Team Total This Month:</span>
+                                <span><strong>£<span id="team-submitted">0.00</span></strong></span>
+                            </div>
+                            <div class="target-row">
+                                <span>💷 Team Remaining:</span>
+                                <span>£<span id="team-remaining">0.00</span></span>
+                            </div>
+                            <div class="target-row">
+                                <span>📅 Days Left in Month:</span>
+                                <span><span id="days-left">0</span> days</span>
+                            </div>
+                            
+                            <!-- Show multiple team indicator -->
+                            <div class="target-row" id="multiple-teams-indicator" style="display: none;">
+                                <span>👥 Your Teams:</span>
+                                <span id="teams-count-display">1 team</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Divider -->
+                    <div class="goals-divider"></div>
+
+                    <!-- User Yearly Goal -->
+                    <div class="user-yearly-goal-part">
+                        <h4 style="color: var(--secondary-color); font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem;">👤 Your Yearly Goal Progress</h4>
+                        <div class="goal-progress" style="margin-bottom:1.2rem; display:flex; align-items:center; gap:10px;">
+                            <div class="progress-bar" style="flex:1;">
+                                <div class="progress-fill" id="user-yearly-progress-bar" style="width:0%"></div>
+                            </div>
+                            <div class="goal-percentage" id="user-yearly-progress"
+                                style="min-width:3.5ch; text-align:right; font-weight:600;">0%</div>
+                        </div>
+                        <div class="goal-details">
+                            <div class="goal-row">
+                                <span>🎯 Your Yearly Goal:</span>
+                                <span><strong>£<span id="user-yearly-goal">0.00</span></strong></span>
+                            </div>
+                            <div class="goal-row">
+                                <span>💰 Your Total This Year:</span>
+                                <span><strong>£<span id="user-yearly-submitted">0.00</span></strong></span>
+                            </div>
+                            <div class="goal-row">
+                                <span>💷 Remaining:</span>
+                                <span>£<span id="user-yearly-remaining">0.00</span></span>
+                            </div>
+                            <div class="goal-row">
+                                <span>📅 Days Left in Year:</span>
+                                <span><span id="user-days-left-year">365</span> days</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Full Width Cases Section -->
+        <div class="cases-section-fullwidth">
+            <div class="cases-header">
+                <div class="cases-title">📋 Your Cases <span class="status-badge status-submitted" id="cases-count">0</span></div>
+                <div class="cases-filters">
+                    <button class="refresh-btn" onclick="refreshCases()">🔄 Refresh</button>
+                    <select class="filter-select" id="case-data-type" onchange="loadUserCases()">
+                        <option value="submitted">Fee Submitted</option>
+                        <option value="paid">Paid</option>
+                    </select>
+                    <select class="filter-select" id="case-type-filter" onchange="loadUserCases()">
+                        <option value="all">All Case Types</option>
+                        <!-- Dynamic options will be populated by JavaScript -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- Scrollable Table Container -->
+            <div class="cases-table-container">
+                <table class="cases-table">
                     <thead>
                         <tr>
-                            <th>Rank</th>
-                            <th>Team Member</th>
-                            <th>Total Submitted</th>
-                            <th>Total Paid</th>
-                            <th>Avg Case Size</th>
+                            <th>Customer Name</th>
+                            <th>Case Type</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th>Data Type</th>
                         </tr>
                     </thead>
-                    <tbody id="leaderboard-body">
+                    <tbody id="cases-body">
                         <tr>
-                            <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                            <td colspan="6" style="text-align: center; padding: 2rem; color: #7f8c8d;">
                                 <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
-                                <p>Loading team data...</p>
+                                <p>Loading cases...</p>
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
-
-        <!-- Right Column - Combined Goals Section -->
-        <div class="right-column">
-            <!-- Combined Team Target and User Yearly Goal Section -->
-            <div class="combined-goals-section">
-                <!-- Team Monthly Goal -->
-                <div class="team-target-part">
-                    <h3 id="team-target-title">🎯 Team Monthly Goal</h3>
-                    <div class="target-progress" style="display:flex; align-items:center; gap:10px;">
-                        <div class="progress-bar" style="flex:1;">
-                            <div class="progress-fill" id="team-progress-bar" style="width: 0%"></div>
-                        </div>
-                        <div class="target-percentage" id="team-progress"
-                            style="min-width:3.5ch; text-align:right; font-weight:600;">0%</div>
-                    </div>
-                    <div class="target-details">
-                        <div class="target-row">
-                            <span>🎯 Start:</span>
-                            <span>£0</span>
-                        </div>
-                        <div class="target-row">
-                            <span>📊 Team Monthly Goal:</span>
-                            <span><strong>£<span id="team-goal">50,000.00</span></strong></span>
-                        </div>
-                        <div class="target-row">
-                            <span>💰 Team Total This Month:</span>
-                            <span><strong>£<span id="team-submitted">0.00</span></strong></span>
-                        </div>
-                        <div class="target-row">
-                            <span>💷 Team Remaining:</span>
-                            <span>£<span id="team-remaining">0.00</span></span>
-                        </div>
-                        <div class="target-row">
-                            <span>📅 Days Left in Month:</span>
-                            <span><span id="days-left">0</span> days</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Divider -->
-                <div class="goals-divider"></div>
-
-                <!-- User Yearly Goal -->
-                <div class="user-yearly-goal-part">
-                    <h4 style="color: var(--secondary-color); font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem;">👤 Your Yearly Goal Progress</h4>
-                    <div class="goal-progress" style="margin-bottom:1.2rem; display:flex; align-items:center; gap:10px;">
-                        <div class="progress-bar" style="flex:1;">
-                            <div class="progress-fill" id="user-yearly-progress-bar" style="width:0%"></div>
-                        </div>
-                        <div class="goal-percentage" id="user-yearly-progress"
-                            style="min-width:3.5ch; text-align:right; font-weight:600;">0%</div>
-                    </div>
-                    <div class="goal-details">
-                        <div class="goal-row">
-                            <span>🎯 Your Yearly Goal:</span>
-                            <span><strong>£<span id="user-yearly-goal">0.00</span></strong></span>
-                        </div>
-                        <div class="goal-row">
-                            <span>💰 Your Total This Year:</span>
-                            <span><strong>£<span id="user-yearly-submitted">0.00</span></strong></span>
-                        </div>
-                        <div class="goal-row">
-                            <span>💷 Remaining:</span>
-                            <span>£<span id="user-yearly-remaining">0.00</span></span>
-                        </div>
-                        <div class="goal-row">
-                            <span>📅 Days Left in Year:</span>
-                            <span><span id="user-days-left-year">365</span> days</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
-
-    <!-- Full Width Cases Section -->
-    <div class="cases-section-fullwidth">
-        <div class="cases-header">
-            <div class="cases-title">📋 Your Cases <span class="status-badge status-submitted" id="cases-count">0</span></div>
-            <div class="cases-filters">
-                <button class="refresh-btn" onclick="refreshCases()">🔄 Refresh</button>
-                <select class="filter-select" id="case-data-type" onchange="loadUserCases()">
-                    <option value="submitted">Fee Submitted</option>
-                    <option value="paid">Paid</option>
-                </select>
-                <select class="filter-select" id="case-type-filter" onchange="loadUserCases()">
-                    <option value="all">All Case Types</option>
-                    <!-- Dynamic options will be populated by JavaScript -->
-                </select>
-            </div>
-        </div>
-
-        <!-- Scrollable Table Container -->
-        <div class="cases-table-container">
-            <table class="cases-table">
-                <thead>
-                    <tr>
-                        <th>Customer Name</th>
-                        <th>Case Type</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                        <th>Date</th>
-                        <th>Data Type</th>
-                    </tr>
-                </thead>
-                <tbody id="cases-body">
-                    <tr>
-                        <td colspan="6" style="text-align: center; padding: 2rem; color: #7f8c8d;">
-                            <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
-                            <p>Loading cases...</p>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         // Global variables
@@ -532,6 +557,15 @@
         let customStartDate = null;
         let customEndDate = null;
         let currentCompany = '{{ session.get("company_mode", "windsor") }}';
+        let userTeams = [];
+        let currentViewingTeam = null;
+
+        function safeHideElement(id) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.style.display = 'none';
+            }
+        }
 
         // Company switching function with theme updates
         async function switchCompany() {
@@ -574,10 +608,6 @@
                         document.body.classList.remove('cnc-theme');
                     }
 
-                    // Update the company indicator
-                    const indicatorEl = document.getElementById('company-indicator');
-                    if (indicatorEl) indicatorEl.textContent = config.indicator;
-
                     // Update the suite name
                     const suiteEl = document.getElementById('suite-name');
                     if (suiteEl) suiteEl.textContent = config.suite;
@@ -598,6 +628,10 @@
 
                     // Update case type filter options
                     updateCaseTypeFilter();
+
+                    // Reset teams data
+                    userTeams = [];
+                    currentViewingTeam = null;
 
                     // Reload all data
                     loadDashboardData();
@@ -898,7 +932,7 @@
                 const totalProc = data.total_submitted - data.total_fee;
 
                 document.getElementById('total-submitted').textContent = `£${data.total_submitted.toFixed(2)}`;
-                document.getElementById('your-proc').textContent = totalProc.toFixed(2);  // FIXED: Now shows just the proc component
+                document.getElementById('your-proc').textContent = totalProc.toFixed(2);
                 document.getElementById('your-fee').textContent = data.total_fee.toFixed(2);
                 document.getElementById('combined-total').textContent = data.combined_total.toFixed(2);
                 document.getElementById('total-paid').textContent = `£${data.total_paid.toFixed(2)}`;
@@ -941,15 +975,15 @@
                 const progressBar = document.getElementById('user-yearly-progress-bar');
                 
                 if (data.user_yearly_progress >= 100) {
-                    progressElement.style.color = '#2ecc71';  // Green for achieved
+                    progressElement.style.color = '#2ecc71';
                     progressBar.style.setProperty('--card-color', '#2ecc71');
                     progressBar.style.setProperty('--card-color-light', '#55efc4');
                 } else if (data.user_yearly_progress >= 75) {
-                    progressElement.style.color = '#f39c12';  // Orange for close
+                    progressElement.style.color = '#f39c12';
                     progressBar.style.setProperty('--card-color', '#f39c12');
                     progressBar.style.setProperty('--card-color-light', '#fdcb6e');
                 } else {
-                    progressElement.style.color = '#667eea';  // Blue for in progress
+                    progressElement.style.color = '#667eea';
                     progressBar.style.setProperty('--card-color', '#667eea');
                     progressBar.style.setProperty('--card-color-light', '#a29bfe');
                 }
@@ -959,7 +993,110 @@
             }
         }
 
-        // Replace your loadTeamData function with this safer version:
+        // Load user's teams for team selector
+        async function loadUserTeams() {
+            try {
+                const response = await fetch('/api/user-teams', { cache: 'no-store' });
+                if (response.ok) {
+                    const allTeams = await response.json();
+                    // Filter out hidden teams for non-master users
+                    userTeams = allTeams.filter(team => !team.is_hidden);
+                    updateTeamSelector();
+                    updateTeamInfoBanner();
+                    updateMultipleTeamsFooter();
+                } else {
+                    console.warn('Could not load user teams');
+                    userTeams = [];
+                }
+            } catch (error) {
+                console.warn('Could not load user teams (multiple teams feature disabled):', error);
+                userTeams = [];
+            }
+        }
+
+        function updateTeamSelector() {
+            const selector = document.getElementById('team-selector');
+            if (!selector) return;
+            
+            // Only show selector if user has multiple visible teams
+            if (userTeams.length > 1) {
+                selector.style.display = 'block';
+                selector.innerHTML = '<option value="">All visible teams</option>' +
+                    userTeams.map(team => `
+                        <option value="${team.id}">
+                            ${team.name}
+                        </option>
+                    `).join('');
+            } else {
+                selector.style.display = 'none';
+            }
+        }
+
+
+        function updateTeamInfoBanner() {
+            const banner = document.getElementById('team-visibility-info');
+            if (!banner || userTeams.length <= 1) {
+                if (banner) banner.style.display = 'none';
+                return;
+            }
+            
+            // Find current team from visible teams only
+            const currentTeam = userTeams.find(team => 
+                currentViewingTeam ? team.id == currentViewingTeam : team.is_current_view
+            );
+            
+            if (!currentTeam) {
+                banner.style.display = 'none';
+                return;
+            }
+            
+            let bannerClass = 'visible-team';
+            // let bannerText = `👥 Team View - Showing ${currentTeam.name}. You're viewing ${userTeams.length} visible teams.`;
+            
+            banner.className = `team-info-banner ${bannerClass}`;
+            // banner.innerHTML = bannerText;
+            // banner.style.display = 'block';
+        }
+
+        function updateMultipleTeamsFooter() {
+            const footer = document.getElementById('multiple-teams-footer');
+            const teamsList = document.getElementById('all-teams-list');
+            
+            if (!footer || !teamsList || userTeams.length <= 1) {
+                if (footer) footer.style.display = 'none';
+                return;
+            }
+            
+            footer.style.display = 'block';
+            
+            teamsList.innerHTML = userTeams.map(team => {
+                const isCurrentView = currentViewingTeam ? team.id == currentViewingTeam : team.is_current_view;
+                const chipClass = `team-chip ${isCurrentView ? 'current' : ''}`;
+                
+                return `<span class="${chipClass}" onclick="selectTeamById(${team.id})" title="Click to view this team">
+                    ${team.name}${isCurrentView ? ' (Current)' : ''}
+                </span>`;
+            }).join('');
+        }
+
+        // Team switching functionality
+        async function switchTeamView() {
+            const selector = document.getElementById('team-selector');
+            if (!selector) return;
+            
+            const selectedTeamId = selector.value;
+            currentViewingTeam = selectedTeamId || null;
+            await loadTeamData();
+        }
+
+        function selectTeamById(teamId) {
+            const selector = document.getElementById('team-selector');
+            if (selector) {
+                selector.value = teamId;
+                switchTeamView();
+            }
+        }
+
         async function loadTeamData() {
             try {
                 let url = `/api/team-data?period=${currentPeriod}`;
@@ -967,10 +1104,15 @@
                     url += `&start=${customStartDate}&end=${customEndDate}`;
                 }
                 
+                // THIS IS THE KEY FIX: Pass the selected team ID to the API
+                if (currentViewingTeam) {
+                    url += `&team_id=${currentViewingTeam}`;
+                }
+                
                 const response = await fetch(url, { cache: 'no-store' });
                 const data = await response.json();
                 
-                // Safe element access with null checks
+                // Safe element access functions
                 const safeSetTextContent = (id, value) => {
                     const element = document.getElementById(id);
                     if (element) {
@@ -989,15 +1131,8 @@
                     }
                 };
                 
-                const safeQuerySelector = (selector) => {
-                    const element = document.querySelector(selector);
-                    if (!element) {
-                        console.warn(`Element with selector '${selector}' not found`);
-                    }
-                    return element;
-                };
-                
-                if (data.no_team) {
+                // Handle no-team state OR hidden team for non-master users
+                if (data.no_team || (data.is_hidden_team && !data.is_master_user)) {
                     safeSetTextContent('team-progress', '0%');
                     safeSetStyle('team-progress-bar', 'width', '0%');
                     safeSetTextContent('team-goal', '0.00');
@@ -1007,28 +1142,61 @@
 
                     const leaderboardBody = document.getElementById('leaderboard-body');
                     if (leaderboardBody) {
-                        leaderboardBody.innerHTML = `
-                            <tr>
-                                <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
-                                    <div style="font-size: 3rem; margin-bottom: 1rem;">👥</div>
-                                    <p>You are not assigned to a team yet. Contact your administrator to be assigned to a team.</p>
-                                </td>
-                            </tr>
-                        `;
+                        if (data.is_hidden_team && !data.is_master_user) {
+                            // For hidden teams, show only personal metrics without revealing it's a hidden team
+                            leaderboardBody.innerHTML = `
+                                <tr>
+                                    <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                                        <div style="font-size: 3rem; margin-bottom: 1rem;">👤</div>
+                                        <p>You are working independently. Focus on your personal goals.</p>
+                                    </td>
+                                </tr>
+                            `;
+                        } else {
+                            leaderboardBody.innerHTML = `
+                                <tr>
+                                    <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                                        <div style="font-size: 3rem; margin-bottom: 1rem;">👥</div>
+                                        <p>You are not assigned to a team yet. Contact your administrator to be assigned to a team.</p>
+                                    </td>
+                                </tr>
+                            `;
+                        }
                     }
 
-                    const leaderboardTitle = safeQuerySelector('.leaderboard-title');
+                    const leaderboardTitle = document.querySelector('.leaderboard-title');
                     if (leaderboardTitle) {
-                        leaderboardTitle.textContent = 'No Team Assigned';
+                        if (data.is_hidden_team && !data.is_master_user) {
+                            leaderboardTitle.textContent = 'Personal Performance';
+                        } else {
+                            leaderboardTitle.textContent = 'No Team Assigned';
+                        }
                     }
                     
                     const teamTargetTitle = document.getElementById('team-target-title');
                     if (teamTargetTitle) {
-                        teamTargetTitle.textContent = 'No Team Target';
+                        if (data.is_hidden_team && !data.is_master_user) {
+                            teamTargetTitle.textContent = '🎯 Personal Goals';
+                        } else {
+                            teamTargetTitle.textContent = 'No Team Target';
+                        }
                     }
+                    
+                    // Hide multiple teams elements
+                    safeHideElement('multiple-teams-indicator');
+                    safeHideElement('team-selector');
+                    safeHideElement('team-visibility-info');
+                    safeHideElement('multiple-teams-footer');
+                    
                     return;
                 }
 
+                // Load user teams if not already loaded (only visible teams)
+                if (userTeams.length === 0) {
+                    await loadUserTeams();
+                }
+
+                // THIS IS THE MAIN FIX: Update ALL team target elements properly
                 safeSetTextContent('team-progress', `${Math.round(data.team_progress)}%`);
                 safeSetStyle('team-progress-bar', 'width', `${Math.min(data.team_progress, 100)}%`);
                 safeSetTextContent('team-goal', data.team_monthly_goal.toFixed(2));
@@ -1036,6 +1204,24 @@
                 safeSetTextContent('team-remaining', (data.team_monthly_goal - data.team_monthly_total).toFixed(2));
                 safeSetTextContent('days-left', `${data.days_left}`);
 
+                // Multiple teams indicator (only count visible teams)
+                const multipleTeamsIndicator = document.getElementById('multiple-teams-indicator');
+                const teamsCountDisplay = document.getElementById('teams-count-display');
+                
+                if (userTeams.length > 1) {
+                    if (multipleTeamsIndicator) {
+                        multipleTeamsIndicator.style.display = 'flex';
+                    }
+                    if (teamsCountDisplay) {
+                        teamsCountDisplay.textContent = `${userTeams.length} teams`;
+                    }
+                } else {
+                    if (multipleTeamsIndicator) {
+                        multipleTeamsIndicator.style.display = 'none';
+                    }
+                }
+
+                // Update leaderboard (team members should already be filtered server-side)
                 const leaderboardBody = document.getElementById('leaderboard-body');
                 if (leaderboardBody) {
                     leaderboardBody.innerHTML = '';
@@ -1077,19 +1263,39 @@
                     }
                 }
 
-                const leaderboardTitle = safeQuerySelector('.leaderboard-title');
+                // THIS IS ALSO IMPORTANT: Update titles with the correct team name
+                const leaderboardTitle = document.querySelector('.leaderboard-title');
                 if (leaderboardTitle) {
-                    leaderboardTitle.textContent = `🏆 ${data.team_name} Leaderboard (${data.team_members.length} members)`;
+                    let titleText = `🏆 ${data.team_name} Leaderboard (${data.team_members.length} members)`;
+                    
+                    if (userTeams.length > 1) {
+                        titleText += ` - Showing: ${data.team_name}`;
+                    }
+                    
+                    leaderboardTitle.textContent = titleText;
                 }
                 
+                // THIS IS THE KEY FIX FOR TEAM TARGET TITLE
                 const teamTargetTitle = document.getElementById('team-target-title');
                 if (teamTargetTitle) {
-                    teamTargetTitle.textContent = `🎯 ${data.team_name} Target (Current Month)`;
+                    let targetTitle = `🎯 ${data.team_name} Monthly Goal`;
+                    
+                    if (userTeams.length > 1) {
+                        targetTitle = `🎯 Team Target (${data.team_name})`;
+                    }
+                    
+                    teamTargetTitle.textContent = targetTitle;
                 }
+
+                // Update team selector and UI elements (only for visible teams)
+                updateTeamSelector();
+                updateTeamInfoBanner();
+                updateMultipleTeamsFooter();
 
             } catch (error) {
                 console.error('Error loading team data:', error);
-                const leaderboardTitle = safeQuerySelector('.leaderboard-title');
+                
+                const leaderboardTitle = document.querySelector('.leaderboard-title');
                 if (leaderboardTitle) {
                     leaderboardTitle.textContent = 'Team Data Unavailable';
                 }
@@ -1105,8 +1311,14 @@
                         </tr>
                     `;
                 }
+                
+                // Hide multiple team elements on error
+                safeHideElement('team-selector');
+                safeHideElement('team-visibility-info');
+                safeHideElement('multiple-teams-footer');
             }
         }
+
 
         async function loadUserCases() {
             try {
@@ -1346,7 +1558,11 @@
         }
 
         function refreshLeaderboard() {
-            loadTeamData();
+            if (currentViewingTeam) {
+                switchTeamView();
+            } else {
+                loadTeamData();
+            }
         }
 
         function refreshCases() {

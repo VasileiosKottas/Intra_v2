@@ -1,5 +1,5 @@
 """
-Advisor model with enhanced OOP methods
+Advisor model with enhanced OOP methods - Updated for multiple teams
 """
 
 from sqlalchemy import or_, and_
@@ -18,7 +18,7 @@ class AdvisorGoal(BaseModel):
     __table_args__ = (db.UniqueConstraint('advisor_id', 'company', name='unique_advisor_company_goal'),)
 
 class Advisor(BaseModel):
-    """Advisor model with enhanced OOP methods"""
+    """Advisor model with enhanced OOP methods for multiple teams"""
     __tablename__ = 'advisors'
     
     full_name = db.Column(db.String(100), nullable=False)
@@ -33,16 +33,53 @@ class Advisor(BaseModel):
     paid_cases = db.relationship('PaidCase', backref='advisor')
     yearly_goals = db.relationship('AdvisorGoal', backref='advisor', cascade='all, delete-orphan')
     
-    def get_team_for_company(self, company):
-        """Get the team for a specific company"""
+    def get_teams_for_company(self, company):
+        """Get ALL teams for a specific company"""
+        teams = []
         for membership in self.team_memberships:
             if membership.team.company == company:
+                teams.append(membership.team)
+        return teams
+    
+    def get_visible_team_for_company(self, company):
+        """Get the visible (non-hidden) team for a specific company"""
+        for membership in self.team_memberships:
+            if membership.team.company == company and not membership.team.is_hidden:
                 return membership.team
         return None
     
+    def get_primary_team_for_company(self, company):
+        """Get primary team for a company (visible team first, then any team)"""
+        # First try to get a visible team
+        visible_team = self.get_visible_team_for_company(company)
+        if visible_team:
+            return visible_team
+        
+        # If no visible team, return any team
+        teams = self.get_teams_for_company(company)
+        return teams[0] if teams else None
+    
+    def get_team_for_company(self, company):
+        """Backward compatibility - returns primary team"""
+        return self.get_primary_team_for_company(company)
+    
+    def is_in_hidden_team_only(self, company):
+        """Check if advisor is only in hidden teams for this company"""
+        teams = self.get_teams_for_company(company)
+        if not teams:
+            return False
+        return all(team.is_hidden for team in teams)
+    
     def get_yearly_goal_for_company(self, company):
         """Get yearly goal for a specific company - checks team first, then individual goal"""
-        # First check if they're in a team with a goal
+        # First check if they're in a team with a goal (prefer visible teams)
+        visible_team = self.get_visible_team_for_company(company)
+        if visible_team:
+            for membership in self.team_memberships:
+                if membership.team.id == visible_team.id and membership.yearly_goal > 0:
+                    return membership.yearly_goal
+        
+        # Then check any team goal
         for membership in self.team_memberships:
             if membership.team.company == company and membership.yearly_goal > 0:
                 return membership.yearly_goal
@@ -57,15 +94,18 @@ class Advisor(BaseModel):
     
     def set_yearly_goal_for_company(self, company, goal_amount):
         """Set yearly goal for a specific company"""
-        # If they're in a team, update team goal
-        team_membership = None
-        for membership in self.team_memberships:
-            if membership.team.company == company:
-                team_membership = membership
-                break
+        # If they're in a team, update the primary team goal
+        primary_team = self.get_primary_team_for_company(company)
         
-        if team_membership:
-            team_membership.yearly_goal = float(goal_amount)
+        if primary_team:
+            team_membership = None
+            for membership in self.team_memberships:
+                if membership.team.id == primary_team.id:
+                    team_membership = membership
+                    break
+            
+            if team_membership:
+                team_membership.yearly_goal = float(goal_amount)
         else:
             # Update or create individual goal
             individual_goal = None
@@ -140,6 +180,7 @@ class Advisor(BaseModel):
         # Count referrals separately - get ALL submissions without any business type filtering
         all_user_submissions = self.get_submissions_for_period(company, start_date, end_date, None)
         referrals_made = len([s for s in all_user_submissions if s.business_type == 'Referral'])
+        
         # Calculate totals
         total_submitted = sum((s.expected_proc or 0) + (s.expected_fee or 0) for s in valid_submissions)
         total_fee = sum(s.expected_fee or 0 for s in valid_submissions)
@@ -159,7 +200,7 @@ class Advisor(BaseModel):
             'total_paid': total_paid,
             'payment_percentage': (total_paid / total_submitted * 100) if total_submitted > 0 else 0,
             'applications': applications,
-            'referrals_made': referrals_made,  # FIXED: Use correct referral count
+            'referrals_made': referrals_made,
             'submissions_count': len(valid_submissions),
             'paid_cases_count': len(paid_cases)
         }

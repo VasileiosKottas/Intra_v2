@@ -43,7 +43,14 @@ class APIController(BaseController):
                              self.login_required(self.get_team_data))
         self.app.add_url_rule('/api/advisor-team-data/<int:advisor_id>', 'api.advisor_team_data',
                              self.master_required(self.get_advisor_team_data))
+                # Get advisor's current teams
+        self.app.add_url_rule('/api/advisor-teams/<int:advisor_id>', 'api.advisor_teams',
+                             self.master_required(self.get_advisor_teams), methods=['GET'])
         
+        # Get available teams for advisor (teams they're not in)
+        self.app.add_url_rule('/api/available-teams/<int:advisor_id>', 'api.available_teams',
+                             self.master_required(self.get_available_teams), methods=['GET'])
+
         # Performance timeline
         self.app.add_url_rule('/api/performance-timeline', 'api.performance_timeline', 
                              self.login_required(self.get_performance_timeline))
@@ -121,8 +128,31 @@ class APIController(BaseController):
                             self.master_required(self.remove_referral_mapping), methods=['DELETE'])
         self.app.add_url_rule('/api/unmapped-referrals', 'api.get_unmapped_referrals',
                             self.master_required(self.get_unmapped_referrals), methods=['GET'])
+        # Get user's teams for team selector
+        self.app.add_url_rule('/api/user-teams', 'api.user_teams',
+                             self.login_required(self.get_user_teams), methods=['GET'])
 
-
+    def get_user_teams(self):
+        """Get user's teams - filter out hidden teams for non-master users"""
+        user = self.get_current_user()
+        current_company = SessionManager.get_current_company(session)
+        
+        teams_data = []
+        for membership in user.team_memberships:
+            team = membership.team
+            if team.company == current_company:
+                # Only include visible teams for non-master users
+                if not team.is_hidden or user.is_master:
+                    teams_data.append({
+                        'id': team.id,
+                        'name': team.name,
+                        'is_hidden': team.is_hidden if user.is_master else False,  # Don't expose hidden status to regular users
+                        'is_current_view': True,  # Will be updated based on selection
+                        'monthly_goal': float(team.monthly_goal or 0.0)
+                    })
+        
+        return jsonify(teams_data)
+            
     def set_company(self):
         """Switch between company modes"""
         data = request.get_json()
@@ -476,15 +506,131 @@ class APIController(BaseController):
                     'data_type': 'Paid'
                 } for p in sorted(paid_cases, key=lambda x: x.date_paid, reverse=True)
             ])
+
+    def get_advisor_teams(self, advisor_id):
+        """Get all teams an advisor is currently in"""
+        advisor = db.session.get(Advisor, advisor_id)
+        if not advisor:
+            return jsonify({'error': 'Advisor not found'}), 404
+        
+        current_company = SessionManager.get_current_company(session)
+        teams = advisor.get_teams_for_company(current_company)
+        
+        team_data = []
+        for team in teams:
+            # Get the yearly goal for this specific team membership
+            yearly_goal = 0.0
+            for membership in advisor.team_memberships:
+                if membership.team.id == team.id:
+                    yearly_goal = membership.yearly_goal
+                    break
+            
+            team_data.append({
+                'id': team.id,
+                'name': team.name,
+                'monthly_goal': team.monthly_goal,
+                'yearly_goal': yearly_goal,
+                'is_hidden': team.is_hidden,
+                'company': team.company
+            })
+        
+        return jsonify(team_data)     
+
+
+    def get_available_teams(self, advisor_id):
+        """Get teams that an advisor is NOT currently in"""
+        advisor = db.session.get(Advisor, advisor_id)
+        if not advisor:
+            return jsonify({'error': 'Advisor not found'}), 404
+        
+        current_company = SessionManager.get_current_company(session)
+        
+        # Get all teams for current company
+        all_teams = Team.query.filter_by(company=current_company).all()
+        
+        # Get teams advisor is currently in
+        advisor_team_ids = {team.id for team in advisor.get_teams_for_company(current_company)}
+        
+        # Filter out teams advisor is already in
+        available_teams = [
+            {
+                'id': team.id,
+                'name': team.name,
+                'monthly_goal': team.monthly_goal,
+                'is_hidden': team.is_hidden,
+                'company': team.company
+            }
+            for team in all_teams
+            if team.id not in advisor_team_ids
+        ]
+        
+        return jsonify(available_teams)
+ 
+
+    def get_visible_team_members(self, user: Advisor, current_company: str) -> list:
+        """Get team members excluding those in hidden teams for regular users"""
+        user_team = user.get_team_for_company(current_company)
+        
+        if user.is_master:
+            # Masters can see all team members
+            return user_team.members if user_team else []
+        
+        if not user_team:
+            # No team assignment
+            return []
+        
+        if user_team.is_hidden:
+            # If user is in a hidden team, they only see themselves (team is invisible to them)
+            return [user]
+        
+        # Regular team members see all members of visible teams only
+        visible_members = []
+        for member in user_team.members:
+            member_team = member.get_team_for_company(current_company)
+            # Only include members who are not in hidden teams
+            if not member_team or not member_team.is_hidden:
+                visible_members.append(member)
+        
+        return visible_members
     
     def get_team_data(self):
-        """Get team data for current user"""
+        """Get team data for current user - supports team switching via team_id parameter"""
         user = self.get_current_user()
         current_company = SessionManager.get_current_company(session)
-        user_team = user.get_team_for_company(current_company)
+        
+        # Check if a specific team is being requested (for team switching)
+        requested_team_id = request.args.get('team_id')
+        
+        if requested_team_id:
+            # User is switching to view a specific team
+            try:
+                requested_team_id = int(requested_team_id)
+                requested_team = Team.query.get(requested_team_id)
+                
+                # Verify user has access to this team
+                user_team_ids = [membership.team.id for membership in user.team_memberships 
+                            if membership.team.company == current_company]
+                
+                if requested_team_id not in user_team_ids:
+                    return jsonify({'error': 'Access denied to requested team'}), 403
+                
+                user_team = requested_team
+            except (ValueError, TypeError):
+                return jsonify({'error': 'Invalid team ID'}), 400
+        else:
+            # Default behavior - get user's primary team
+            user_team = user.get_team_for_company(current_company)
         
         if not user_team:
             return jsonify({'no_team': True})
+
+        # For hidden teams, completely hide them from non-master users
+        if user_team.is_hidden and not user.is_master:
+            return jsonify({
+                'no_team': True,
+                'is_hidden_team': True,
+                'is_master_user': False
+            })
 
         period = request.args.get('period', 'month')
         start_str = request.args.get('start')
@@ -492,8 +638,19 @@ class APIController(BaseController):
         
         start_date, end_date = DateService.resolve_period_dates(period, start_str, end_str)
         
-        # Get visible team members (excludes hidden team members for regular users)
-        visible_members = self.get_visible_team_members(user, current_company)
+        # Get team members for the selected team (not just user's primary team)
+        if user.is_master:
+            # Masters can see all team members
+            visible_members = user_team.members
+        else:
+            if user_team.is_hidden:
+                # If viewing a hidden team, only show self
+                visible_members = [user]
+            else:
+                # For visible teams, show all members who are not in hidden teams
+                visible_members = [member for member in user_team.members 
+                                if not member.get_team_for_company(current_company) or 
+                                not member.get_team_for_company(current_company).is_hidden]
         
         team_members = []
         for member in visible_members:
@@ -516,7 +673,7 @@ class APIController(BaseController):
 
         team_members.sort(key=lambda m: m['total_submitted'], reverse=True)
 
-        # Team monthly goal (always current month)
+        # Team monthly goal (always current month) - for the SELECTED team
         month_start, today = DateService.get_current_month_dates()
         
         monthly_metrics = user_team.get_team_metrics_for_period(
@@ -525,18 +682,18 @@ class APIController(BaseController):
             config_manager.get_valid_paid_case_types(current_company)
         )
         
-        # For hidden teams, don't show team goals to regular members
-        if user_team.is_hidden and not user.is_master:
-            team_goal = 0.0
-            team_progress = 0.0
-        else:
-            team_goal = float(user_team.monthly_goal or 0.0)
-            team_progress = (monthly_metrics['total_submitted'] / team_goal * 100) if team_goal > 0 else 0.0
+        team_goal = float(user_team.monthly_goal or 0.0)
+        team_progress = (monthly_metrics['total_submitted'] / team_goal * 100) if team_goal > 0 else 0.0
         
         days_left = DateService.days_left_in_month()
 
+        # Count only visible teams for the user
+        user_visible_teams = [team for membership in user.team_memberships 
+                            for team in [membership.team] 
+                            if team.company == current_company and (not team.is_hidden or user.is_master)]
+
         return jsonify({
-            'team_name': user_team.name if not user_team.is_hidden or user.is_master else 'Personal Goals',
+            'team_name': user_team.name,
             'team_members': team_members,
             'team_progress': team_progress,
             'team_monthly_total': monthly_metrics['total_submitted'],
@@ -544,16 +701,37 @@ class APIController(BaseController):
             'days_left': days_left,
             'total_paid': sum(m['total_paid'] for m in team_members),
             'company': current_company,
-            'is_hidden_team': user_team.is_hidden if user_team else False
+            'user_teams_count': len(user_visible_teams),
+            'is_hidden_team': False,  # Never expose hidden team status to frontend
+            'is_master_user': user.is_master,
+            'current_team_id': user_team.id  # Include current team ID for frontend reference
         })
     
     def get_advisor_team_data(self, advisor_id):
-        """Get team data for a specific advisor (master only)"""
+        """Get team data for a specific advisor - ENHANCED with team_id support (master only)"""
         advisor = db.session.get(Advisor, advisor_id)
         current_company = SessionManager.get_current_company(session)
-        advisor_team = advisor.get_team_for_company(current_company) if advisor else None
         
-        if not advisor or not advisor_team:
+        # Check if specific team was requested
+        requested_team_id = request.args.get('team_id')
+        
+        if requested_team_id:
+            # Get specific team data
+            try:
+                team_id = int(requested_team_id)
+                requested_team = db.session.get(Team, team_id)
+                
+                if not requested_team or requested_team.company != current_company:
+                    return jsonify({'error': 'Team not found'}), 404
+                
+                display_team = requested_team
+            except (ValueError, TypeError):
+                return jsonify({'error': 'Invalid team ID'}), 400
+        else:
+            # Get advisor's primary team
+            display_team = advisor.get_primary_team_for_company(current_company) if advisor else None
+        
+        if not advisor or not display_team:
             return jsonify({'no_team': True})
         
         period = request.args.get('period', 'month')
@@ -562,8 +740,9 @@ class APIController(BaseController):
         
         start_date, end_date = DateService.resolve_period_dates(period, start_str, end_str)
 
+        # Masters can see all team members
         team_members = []
-        for member in advisor_team.members:
+        for member in display_team.members:
             metrics = member.calculate_metrics_for_period(
                 current_company, start_date, end_date,
                 config_manager.get_valid_business_types(current_company),
@@ -586,18 +765,18 @@ class APIController(BaseController):
         # Team monthly goal (always current month)
         month_start, today = DateService.get_current_month_dates()
         
-        monthly_metrics = advisor_team.get_team_metrics_for_period(
+        monthly_metrics = display_team.get_team_metrics_for_period(
             month_start, today,
             config_manager.get_valid_business_types(current_company),
             config_manager.get_valid_paid_case_types(current_company)
         )
         
-        team_goal = float(advisor_team.monthly_goal or 0.0)
+        team_goal = float(display_team.monthly_goal or 0.0)
         team_progress = (monthly_metrics['total_submitted'] / team_goal * 100) if team_goal > 0 else 0.0
         days_left = DateService.days_left_in_month()
 
         return jsonify({
-            'team_name': advisor_team.name,
+            'team_name': display_team.name,
             'team_members': team_members,
             'team_progress': team_progress,
             'team_monthly_total': monthly_metrics['total_submitted'],
@@ -605,7 +784,11 @@ class APIController(BaseController):
             'days_left': days_left,
             'total_paid': sum(m['total_paid'] for m in team_members),
             'company': current_company,
-            'is_hidden_team': advisor_team.is_hidden
+            'is_hidden_team': display_team.is_hidden,
+            'user_teams_count': len(advisor.get_teams_for_company(current_company)),
+            'advisor_name': advisor.full_name,
+            'requested_team_id': requested_team_id,
+            'can_switch_teams': len(advisor.get_teams_for_company(current_company)) > 1
         })
     
     def get_performance_timeline(self):
@@ -813,9 +996,9 @@ class APIController(BaseController):
             db.session.rollback()
             print(f"Error deleting team: {str(e)}")  # For debugging
             return jsonify({'error': 'Failed to delete team'}), 500
-        
+
     def assign_to_team(self):
-        """Assign an advisor to a team"""
+        """Assign an advisor to a team - UPDATED to allow multiple teams"""
         data = request.get_json()
         advisor_id = data.get('advisor_id')
         team_id = data.get('team_id')
@@ -834,17 +1017,19 @@ class APIController(BaseController):
         if team.company != current_company:
             return jsonify({'error': 'Team not in current company'}), 403
         
-        success, message = team.add_member(advisor, float(yearly_goal))
+        # Updated to allow multiple teams (allow_multiple=True by default)
+        success, message = team.add_member(advisor, float(yearly_goal), allow_multiple=True)
         
         if success:
             return jsonify({'success': True, 'message': message})
         else:
             return jsonify({'error': message}), 400
-    
+
     def unassign_from_team(self):
-        """Unassign an advisor from their team in current company"""
+        """Unassign an advisor from a SPECIFIC team in current company"""
         data = request.get_json()
         advisor_id = data.get('advisor_id')
+        team_id = data.get('team_id')  # NEW: Specific team ID
         
         if not advisor_id:
             return jsonify({'error': 'Advisor ID required'}), 400
@@ -854,15 +1039,26 @@ class APIController(BaseController):
             return jsonify({'error': 'Advisor not found'}), 404
         
         current_company = SessionManager.get_current_company(session)
-        current_team = advisor.get_team_for_company(current_company)
         
-        if not current_team:
-            return jsonify({'error': 'Advisor not assigned to any team in this company'}), 400
-        
-        success, message = current_team.remove_member(advisor)
+        if team_id:
+            # Unassign from specific team
+            team = db.session.get(Team, team_id)
+            if not team or team.company != current_company:
+                return jsonify({'error': 'Team not found or not in current company'}), 404
+            
+            success, message = team.remove_member(advisor)
+            team_name = team.name
+        else:
+            # Unassign from primary team (backward compatibility)
+            primary_team = advisor.get_primary_team_for_company(current_company)
+            if not primary_team:
+                return jsonify({'error': 'Advisor not assigned to any team in this company'}), 400
+            
+            success, message = primary_team.remove_member(advisor)
+            team_name = primary_team.name
         
         if success:
-            return jsonify({'success': True, 'message': f'{advisor.full_name} unassigned from {current_team.name}'})
+            return jsonify({'success': True, 'message': f'{advisor.full_name} unassigned from {team_name}'})
         else:
             return jsonify({'error': message}), 500
 

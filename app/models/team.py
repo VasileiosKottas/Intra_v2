@@ -1,5 +1,5 @@
 """
-Team and AdvisorTeam models
+Team and AdvisorTeam models - Updated for multiple team memberships
 """
 
 from app.models import db
@@ -17,7 +17,7 @@ class AdvisorTeam(BaseModel):
     __table_args__ = (db.UniqueConstraint('advisor_id', 'team_id', name='unique_advisor_team'),)
 
 class Team(BaseModel):
-    """Team model with enhanced methods"""
+    """Team model with enhanced methods for multiple memberships"""
     __tablename__ = 'teams'
     
     name = db.Column(db.String(100), nullable=False)
@@ -28,7 +28,6 @@ class Team(BaseModel):
     
     # Relationships
     creator = db.relationship('Advisor', foreign_keys=[created_by])
-
     advisor_memberships = db.relationship('AdvisorTeam', backref='team', cascade='all, delete-orphan')
     
     @property
@@ -36,21 +35,19 @@ class Team(BaseModel):
         """Get all advisors in this team"""
         return [membership.advisor for membership in self.advisor_memberships]
     
-    def add_member(self, advisor, yearly_goal=0.0):
-        """Add a member to the team"""
-        # Check if already a member
+    def add_member(self, advisor, yearly_goal=0.0, allow_multiple=True):
+        """Add a member to the team - NOW SUPPORTS MULTIPLE TEAMS"""
+        # Check if already a member of THIS team
         existing = AdvisorTeam.query.filter_by(
             advisor_id=advisor.id,
             team_id=self.id
         ).first()
         
         if existing:
-            return False, "Advisor already in team"
+            return False, "Advisor already in this team"
         
-        # Remove from any existing team in this company
-        for membership in advisor.team_memberships:
-            if membership.team.company == self.company:
-                db.session.delete(membership)
+        # REMOVED: No longer remove from existing teams in same company
+        # This allows multiple team memberships
         
         # Add to this team
         new_membership = AdvisorTeam(

@@ -399,8 +399,13 @@ body {
     flex-direction: column;
 }
 
-.leaderboard-section .leaderboard-header {
-    flex-shrink: 0;
+.leaderboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
 }
 
 .leaderboard-section .leaderboard-table {
@@ -651,5 +656,212 @@ body {
     
     .cases-section-fullwidth {
         margin-top: 3rem;
+    }
+}
+
+.multiple-teams-badge {
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+}
+
+.team-selection-dropdown {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.5rem;
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.team-visibility-note {
+    background: #e3f2fd;
+    border-left: 4px solid #2196f3;
+    padding: 0.75rem;
+    margin: 1rem 0;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.85rem;
+    color: #1565c0;
+}
+
+.hidden-team-note {
+    background: #fff3e0;
+    border-left: 4px solid #ff9800;
+    padding: 0.75rem;
+    margin: 1rem 0;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.85rem;
+    color: #e65100;
+}
+
+/* Dark theme support for new elements */
+body.cnc-theme .team-selection-dropdown {
+    background: var(--card-background);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+body.cnc-theme .team-visibility-note {
+    background: #e8f4f8;
+    color: #0277bd;
+}
+
+body.cnc-theme .hidden-team-note {
+    background: #fff8e1;
+    color: #f57c00;
+}
+
+.leaderboard-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.team-selector {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+    color: #2c3e50;
+    min-width: 180px;
+    max-width: 250px;
+}
+
+.team-selector:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.25);
+}
+
+.team-info-banner {
+    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+    border: 1px solid #bbdefb;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.team-info-banner.visible-team {
+    background: linear-gradient(135deg, #e8f5e8 0%, #f1f8e9 100%);
+    border-color: #a5d6a7;
+    color: #2e7d32;
+}
+
+.team-info-banner.hidden-team {
+    background: linear-gradient(135deg, #fff3e0 0%, #fce4ec 100%);
+    border-color: #ffcc02;
+    color: #e65100;
+}
+
+.team-info-banner.personal-goals {
+    background: linear-gradient(135deg, #f3e5f5 0%, #fce4ec 100%);
+    border-color: #ce93d8;
+    color: #7b1fa2;
+}
+
+.multiple-teams-footer {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #dee2e6;
+}
+
+.teams-summary h4 {
+    margin-bottom: 0.75rem;
+    color: var(--primary-color);
+    font-size: 1rem;
+}
+
+.team-chip {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--secondary-color) 0%, #5a67d8 100%);
+    color: white;
+    padding: 0.4rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin: 0.25rem 0.25rem 0.25rem 0;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.team-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.team-chip.hidden {
+    background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+}
+
+.team-chip.current {
+    border-color: #fff;
+    box-shadow: 0 0 0 2px var(--secondary-color);
+}
+
+.leaderboard-no-data {
+    text-align: center;
+    padding: 2rem;
+    color: #7f8c8d;
+}
+
+.leaderboard-no-data .icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+/* Dark theme support */
+body.cnc-theme .team-selector {
+    background: var(--card-background);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+body.cnc-theme .team-info-banner {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+body.cnc-theme .multiple-teams-footer {
+    border-top-color: var(--border-color);
+}
+
+body.cnc-theme .team-chip {
+    background: linear-gradient(135deg, var(--secondary-color) 0%, #e6850e 100%);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .leaderboard-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .leaderboard-controls {
+        justify-content: center;
+    }
+    
+    .team-selector {
+        min-width: auto;
+        width: 100%;
+        max-width: none;
+    }
+    
+    .multiple-teams-footer {
+        margin-top: 1rem;
+    }
+    
+    .team-chip {
+        display: block;
+        margin: 0.25rem 0;
+        text-align: center;
     }
 }
