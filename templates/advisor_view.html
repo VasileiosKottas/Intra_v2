@@ -1140,6 +1140,7 @@
             updateChart();
         }
 
+
         async function updateChart() {
             if (!performanceChart) {
                 console.warn('Chart not initialized, calling initializeChart()');
@@ -1148,42 +1149,71 @@
             }
 
             try {
-                let url = `/api/performance-boxplot?period=${currentPeriod}&type=${currentChartType}`;
+                // FIXED: Use the advisor-specific boxplot endpoint
+                let url = `/api/advisor-performance-boxplot/${advisorId}?period=${currentPeriod}&type=${currentChartType}`;
                 if (currentPeriod === 'custom' && customStartDate && customEndDate) {
                     url += `&start=${customStartDate}&end=${customEndDate}`;
                 }
                 
-                const response = await fetch(url, { cache: 'no-store' });
+                console.log('Fetching chart data from:', url);
+                const response = await fetch(url, { 
+                    cache: 'no-store',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const data = await response.json();
+                console.log('Chart data received:', data);
+
+                // Validate data structure
+                if (!data || !Array.isArray(data.periods) || !Array.isArray(data.values)) {
+                    console.warn('Invalid data structure, falling back to timeline');
+                    await updateOriginalChart();
+                    return;
+                }
 
                 // Update chart data
-                performanceChart.data.labels = data.periods;
-                performanceChart.data.datasets[0].data = data.values;
+                performanceChart.data.labels = data.periods || [];
+                performanceChart.data.datasets[0].data = data.values || [];
                 performanceChart.data.datasets[0].label = currentChartType === 'submitted' ? 'Total Submitted' : 'Total Paid';
                 performanceChart.data.datasets[0].backgroundColor = currentChartType === 'submitted' ? 'rgba(52, 152, 219, 0.8)' : 'rgba(46, 204, 113, 0.8)';
                 performanceChart.data.datasets[0].borderColor = currentChartType === 'submitted' ? '#3498db' : '#2ecc71';
                 
                 // Show/hide goal line based on chart type
-                if (currentChartType === 'submitted') {
-                    // Show goal line for submitted data
+                if (currentChartType === 'submitted' && data.monthly_goals && data.monthly_goals.length > 0) {
                     performanceChart.data.datasets[1].data = data.monthly_goals;
                     performanceChart.data.datasets[1].hidden = false;
                 } else {
-                    // Hide goal line for paid data
                     performanceChart.data.datasets[1].data = [];
                     performanceChart.data.datasets[1].hidden = true;
                 }
                 
                 performanceChart.update();
 
-                // Update stats
+                // Update stats safely
                 const total = data.current_total || 0;
-                const best = Math.max(...data.values, 0);
+                const best = data.values && data.values.length > 0 ? Math.max(...data.values, 0) : 0;
                 const monthlyGoal = data.monthly_goal || 0;
                 
-                document.getElementById('chart-total').textContent = total.toFixed(2);
-                document.getElementById('chart-best').textContent = best.toFixed(2);
-                document.getElementById('monthly-goal').textContent = monthlyGoal.toFixed(2);
+                const safeUpdateElement = (id, value) => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = value;
+                    }
+                };
+                
+                safeUpdateElement('chart-total', total.toFixed(2));
+                safeUpdateElement('chart-best', best.toFixed(2));
+                
+                // Handle different goal element names
+                safeUpdateElement('monthly-goal', monthlyGoal.toFixed(2));
+                safeUpdateElement('yearly-goal', (monthlyGoal * 12).toFixed(2));
 
             } catch (error) {
                 console.error('Error updating chart:', error);
@@ -1192,27 +1222,63 @@
             }
         }
 
-        // Also update the fallback function
+        // Also update the fallback function to use the advisor-specific timeline endpoint:
         async function updateOriginalChart() {
             try {
-                let url = `/api/performance-timeline?period=${currentPeriod}&type=${currentChartType}`;
+                // FIXED: Use the advisor-specific timeline endpoint
+                let url = `/api/advisor-performance-timeline/${advisorId}?period=${currentPeriod}&type=${currentChartType}`;
                 if (currentPeriod === 'custom' && customStartDate && customEndDate) {
                     url += `&start=${customStartDate}&end=${customEndDate}`;
                 }
                 
-                const response = await fetch(url, { cache: 'no-store' });
+                console.log('Fetching timeline fallback data from:', url);
+                const response = await fetch(url, { 
+                    cache: 'no-store',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const data = await response.json();
+                console.log('Timeline fallback data received:', data);
+
+                if (!Array.isArray(data) || data.length === 0) {
+                    console.warn('No timeline data available, using empty chart');
+                    performanceChart.data.labels = ['No Data'];
+                    performanceChart.data.datasets[0].data = [0];
+                    performanceChart.data.datasets[1].data = [];
+                    performanceChart.data.datasets[1].hidden = true;
+                    performanceChart.update();
+                    return;
+                }
 
                 // Convert line chart to bar chart data
-                const periods = data.map(item => new Date(item.date).toLocaleDateString());
-                const values = data.map(item => item.value);
+                const periods = data.map(item => {
+                    try {
+                        return new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                    } catch {
+                        return item.date;
+                    }
+                });
+                const values = data.map(item => item.value || 0);
                 
-                performanceChart.data.labels = periods.slice(-10); // Show last 10 data points
-                performanceChart.data.datasets[0].data = values.slice(-10);
+                // Show last 10 data points
+                const maxPoints = 10;
+                const displayPeriods = periods.slice(-maxPoints);
+                const displayValues = values.slice(-maxPoints);
+                
+                performanceChart.data.labels = displayPeriods;
+                performanceChart.data.datasets[0].data = displayValues;
                 
                 // Show/hide goal line based on chart type
                 if (currentChartType === 'submitted') {
-                    performanceChart.data.datasets[1].data = Array(Math.min(periods.length, 10)).fill(0);
+                    // Use a simple goal line - will be replaced with proper data
+                    performanceChart.data.datasets[1].data = Array(displayValues.length).fill(0);
                     performanceChart.data.datasets[1].hidden = false;
                 } else {
                     performanceChart.data.datasets[1].data = [];
@@ -1221,17 +1287,46 @@
                 
                 performanceChart.update();
 
-                const total = data.length > 0 ? data[data.length - 1].value : 0;
+                // Update stats
+                const total = data.length > 0 ? data[data.length - 1].value || 0 : 0;
                 const best = Math.max(...values, 0);
-                document.getElementById('chart-total').textContent = total.toFixed(2);
-                document.getElementById('chart-best').textContent = best.toFixed(2);
-                document.getElementById('monthly-goal').textContent = '0.00';
+                
+                const safeUpdateElement = (id, value) => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = value;
+                    }
+                };
+                
+                safeUpdateElement('chart-total', total.toFixed(2));
+                safeUpdateElement('chart-best', best.toFixed(2));
+                safeUpdateElement('monthly-goal', '0.00');
+                safeUpdateElement('yearly-goal', '0.00');
 
             } catch (error) {
-                console.error('Error with fallback chart:', error);
+                console.error('Error with timeline fallback:', error);
+                
+                // Final fallback - show empty chart with message
+                performanceChart.data.labels = ['No Data Available'];
+                performanceChart.data.datasets[0].data = [0];
+                performanceChart.data.datasets[1].data = [];
+                performanceChart.data.datasets[1].hidden = true;
+                performanceChart.update();
+                
+                // Update stats to zeros
+                const safeUpdateElement = (id, value) => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = value;
+                    }
+                };
+                
+                safeUpdateElement('chart-total', '0.00');
+                safeUpdateElement('chart-best', '0.00');
+                safeUpdateElement('monthly-goal', '0.00');
+                safeUpdateElement('yearly-goal', '0.00');
             }
         }
-
         function refreshLeaderboard() {
             loadTeamData();
         }
