@@ -26,7 +26,8 @@ class Advisor(BaseModel):
     email = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     is_master = db.Column(db.Boolean, default=False)
-    
+    is_hidden_from_team = db.Column(db.Boolean, default=False, nullable=False)
+
     # Relationships
     team_memberships = db.relationship('AdvisorTeam', backref='advisor', cascade='all, delete-orphan')
     submissions = db.relationship('Submission', backref='advisor')
@@ -204,3 +205,25 @@ class Advisor(BaseModel):
             'submissions_count': len(valid_submissions),
             'paid_cases_count': len(paid_cases)
         }
+
+    def is_visible_to_advisor(self, viewing_advisor):
+        """Check if this advisor should be visible to another advisor"""
+        if viewing_advisor.is_master:
+            return True  # Masters can see everyone
+        return not self.is_hidden_from_team  # Regular advisors can't see hidden ones
+
+    def get_visible_team_members(self, company):
+        """
+        Get team members that this advisor can see
+        Filters out advisors that are hidden from team (unless this advisor is a master)
+        """
+        team = self.get_team_for_company(company)
+        if not team:
+            return []
+        
+        visible_members = []
+        for member in team.members:
+            if member.is_visible_to_advisor(self):
+                visible_members.append(member)
+        
+        return visible_members

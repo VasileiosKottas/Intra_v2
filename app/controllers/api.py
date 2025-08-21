@@ -16,6 +16,7 @@ from app.services.analytics import AnalyticsService
 from app.services.date import DateService
 from app.config.session import SessionManager
 from app.config import config_manager
+from datetime import datetime
 
 class APIController(BaseController):
     """Handles API routes"""
@@ -132,26 +133,44 @@ class APIController(BaseController):
         self.app.add_url_rule('/api/user-teams', 'api.user_teams',
                              self.login_required(self.get_user_teams), methods=['GET'])
 
+        # Individual advisor visibility management
+        self.app.add_url_rule('/api/toggle-advisor-visibility/<int:advisor_id>', 
+                            'api.toggle_advisor_visibility', 
+                            self.master_required(self.toggle_advisor_visibility), 
+                            methods=['POST'])
+        
+        self.app.add_url_rule('/api/advisor-visibility-status/<int:advisor_id>', 
+                            'api.advisor_visibility_status', 
+                            self.master_required(self.get_advisor_visibility_status), 
+                            methods=['GET'])
+
     def get_user_teams(self):
         """Get user's teams - filter out hidden teams for non-master users"""
-        user = self.get_current_user()
-        current_company = SessionManager.get_current_company(session)
-        
-        teams_data = []
-        for membership in user.team_memberships:
-            team = membership.team
-            if team.company == current_company:
-                # Only include visible teams for non-master users
-                if not team.is_hidden or user.is_master:
-                    teams_data.append({
-                        'id': team.id,
-                        'name': team.name,
-                        'is_hidden': team.is_hidden if user.is_master else False,  # Don't expose hidden status to regular users
-                        'is_current_view': True,  # Will be updated based on selection
-                        'monthly_goal': float(team.monthly_goal or 0.0)
-                    })
-        
-        return jsonify(teams_data)
+        try:
+            user = self.get_current_user()
+            if not user:
+                return jsonify([])
+                
+            current_company = SessionManager.get_current_company(session)
+            
+            teams_data = []
+            for membership in user.team_memberships:
+                team = membership.team
+                if team.company == current_company:
+                    # Only include visible teams for non-master users
+                    if not team.is_hidden or user.is_master:
+                        teams_data.append({
+                            'id': team.id,
+                            'name': team.name,
+                            'is_hidden': team.is_hidden if user.is_master else False,
+                            'is_current_view': True,
+                            'monthly_goal': float(team.monthly_goal or 0.0)
+                        })
+            
+            return jsonify(teams_data)
+        except Exception as e:
+            print(f"Error in get_user_teams: {str(e)}")
+            return jsonify([])
             
     def set_company(self):
         """Switch between company modes"""
@@ -595,6 +614,8 @@ class APIController(BaseController):
     
     def get_team_data(self):
         """Get team data for current user - supports team switching via team_id parameter"""
+        from datetime import datetime
+        
         user = self.get_current_user()
         current_company = SessionManager.get_current_company(session)
         
@@ -638,75 +659,115 @@ class APIController(BaseController):
         
         start_date, end_date = DateService.resolve_period_dates(period, start_str, end_str)
         
-        # Get team members for the selected team (not just user's primary team)
+        # Filter members for leaderboard display only (not for performance timeline)
         if user.is_master:
-            # Masters can see all team members
-            visible_members = user_team.members
+            # Masters can see all team members in leaderboard
+            leaderboard_members = user_team.members
         else:
             if user_team.is_hidden:
                 # If viewing a hidden team, only show self
-                visible_members = [user]
+                leaderboard_members = [user]
             else:
-                # For visible teams, show all members who are not in hidden teams
-                visible_members = [member for member in user_team.members 
-                                if not member.get_team_for_company(current_company) or 
-                                not member.get_team_for_company(current_company).is_hidden]
+                # Regular team members - filter out individually hidden advisors from leaderboard
+                leaderboard_members = []
+                for member in user_team.members:
+                    # Check if member is visible (not hidden from team)
+                    if hasattr(member, 'is_hidden_from_team'):
+                        if not member.is_hidden_from_team:
+                            leaderboard_members.append(member)
+                    else:
+                        # Fallback if column doesn't exist yet - show everyone
+                        leaderboard_members.append(member)
         
+        # Calculate team leaderboard based on visible members only
         team_members = []
-        for member in visible_members:
+        total_team_submitted = 0.0
+        total_team_goal = 0.0
+        
+        for member in leaderboard_members:  # Use filtered list for leaderboard
             metrics = member.calculate_metrics_for_period(
                 current_company, start_date, end_date,
                 config_manager.get_valid_business_types(current_company),
                 config_manager.get_valid_paid_case_types(current_company)
             )
             
-            yearly_goal = member.get_yearly_goal_for_company(current_company)
+            yearly_goal = member.get_yearly_goal_for_company(current_company) or 0.0
             goal_progress = (metrics['total_submitted'] / yearly_goal * 100) if yearly_goal > 0 else 0.0
-
+            
             team_members.append({
                 'name': member.full_name,
-                'total_submitted': metrics['total_submitted'],
-                'total_paid': metrics['total_paid'],
-                'avg_case_size': (metrics['total_paid'] / metrics['paid_cases_count']) if metrics['paid_cases_count'] > 0 else 0.0,
-                'goal_progress': goal_progress
+                'total_submitted': float(metrics.get('total_submitted', 0.0)),
+                'total_paid': float(metrics.get('total_paid', 0.0)),
+                'avg_case_size': float((metrics['total_paid'] / metrics['paid_cases_count']) if metrics.get('paid_cases_count', 0) > 0 else 0.0),
+                'goal_progress': float(goal_progress)
             })
-
+            
+            total_team_submitted += float(metrics.get('total_submitted', 0.0))
+            total_team_goal += float(yearly_goal)
+        
+        # Sort team members by total submitted (descending)
         team_members.sort(key=lambda m: m['total_submitted'], reverse=True)
-
-        # Team monthly goal (always current month) - for the SELECTED team
+        
+        # Calculate team progress (yearly)
+        team_goal = (user_team.monthly_goal or 0.0) * 12  # Convert monthly to yearly
+        team_progress = (total_team_submitted / team_goal * 100) if team_goal > 0 else 0.0
+        team_remaining = max(0, team_goal - total_team_submitted)
+        
+        # Calculate monthly metrics for the frontend based on visible members only
         month_start, today = DateService.get_current_month_dates()
         
-        monthly_metrics = user_team.get_team_metrics_for_period(
-            month_start, today,
-            config_manager.get_valid_business_types(current_company),
-            config_manager.get_valid_paid_case_types(current_company)
-        )
+        # Calculate monthly total for visible members only
+        monthly_total_visible = 0.0
+        for member in leaderboard_members:  # Use filtered list for monthly calculations
+            monthly_metrics = member.calculate_metrics_for_period(
+                current_company, month_start, today,
+                config_manager.get_valid_business_types(current_company),
+                config_manager.get_valid_paid_case_types(current_company)
+            )
+            monthly_total_visible += float(monthly_metrics.get('total_submitted', 0.0))
         
-        team_goal = float(user_team.monthly_goal or 0.0)
-        team_progress = (monthly_metrics['total_submitted'] / team_goal * 100) if team_goal > 0 else 0.0
+        # Days left calculation
+        if period == 'year':
+            days_left = DateService.days_left_in_year()
+        else:
+            today = datetime.now().date()
+            days_left = (end_date - today).days
         
-        days_left = DateService.days_left_in_month()
-
-        # Count only visible teams for the user
-        user_visible_teams = [team for membership in user.team_memberships 
-                            for team in [membership.team] 
-                            if team.company == current_company and (not team.is_hidden or user.is_master)]
-
+        # Get team's visible teams for switching
+        user_visible_teams = []
+        for membership in user.team_memberships:
+            team = membership.team
+            if team.company == current_company:
+                if not team.is_hidden or user.is_master:
+                    user_visible_teams.append({
+                        'id': team.id,
+                        'name': team.name,
+                        'is_current': team.id == user_team.id
+                    })
+        
+        # SAFETY: Ensure all values are not None and have proper defaults
+        team_monthly_goal = float(user_team.monthly_goal or 0.0)
+        team_progress_monthly = (monthly_total_visible / team_monthly_goal * 100) if team_monthly_goal > 0 else 0.0
+        days_left_value = max(0, int(days_left if days_left is not None else 0))
+        
         return jsonify({
-            'team_name': user_team.name,
-            'team_members': team_members,
-            'team_progress': team_progress,
-            'team_monthly_total': monthly_metrics['total_submitted'],
-            'team_monthly_goal': team_goal,
-            'days_left': days_left,
-            'total_paid': sum(m['total_paid'] for m in team_members),
-            'company': current_company,
-            'user_teams_count': len(user_visible_teams),
-            'is_hidden_team': False,  # Never expose hidden team status to frontend
+            'team_name': user_team.name or 'Unknown Team',
+            'team_progress': round(team_progress_monthly, 1),  # Monthly progress for frontend
+            'team_goal': float(team_goal),
+            'team_monthly_goal': team_monthly_goal,  # Required by frontend
+            'team_submitted': float(total_team_submitted),
+            'team_monthly_total': monthly_total_visible,  # Required by frontend - only visible members
+            'team_remaining': max(0, team_monthly_goal - monthly_total_visible),  # Based on monthly goal
+            'days_left': days_left_value,  # Required by frontend
+            'team_members': team_members,  # Only visible members
+            'multiple_teams': user_visible_teams,
+            'multiple_teams_count': len(user_visible_teams),
+            'is_hidden_team': False,
             'is_master_user': user.is_master,
-            'current_team_id': user_team.id  # Include current team ID for frontend reference
+            'current_team_id': user_team.id,
+            'company': current_company
         })
-    
+
     def get_advisor_team_data(self, advisor_id):
         """Get team data for a specific advisor - ENHANCED with team_id support (master only)"""
         advisor = db.session.get(Advisor, advisor_id)
@@ -790,9 +851,9 @@ class APIController(BaseController):
             'requested_team_id': requested_team_id,
             'can_switch_teams': len(advisor.get_teams_for_company(current_company)) > 1
         })
-    
+
     def get_performance_timeline(self):
-        """Get performance timeline for current user"""
+        """Get performance timeline for current user with improved error handling"""
         user = self.get_current_user()
         if not user:
             return jsonify([])
@@ -803,15 +864,28 @@ class APIController(BaseController):
         start_str = request.args.get('start')
         end_str = request.args.get('end')
         
-        analytics_service = AnalyticsService(current_company)
-        timeline_data = analytics_service.get_advisor_performance_timeline(
-            user, period, metric_type, start_str, end_str
-        )
-        
-        return jsonify(timeline_data)
-    
+        try:
+            analytics_service = AnalyticsService(current_company)
+            timeline_data = analytics_service.get_advisor_performance_timeline(
+                user, period, metric_type, start_str, end_str
+            )
+            return jsonify(timeline_data)
+        except Exception as e:
+            print(f"Error in get_performance_timeline: {str(e)}")
+            # Return safe fallback data
+            from app.services.date import DateService
+            start_date, end_date = DateService.resolve_period_dates(period, start_str, end_str)
+            
+            return jsonify([{
+                'date': start_date.strftime('%Y-%m-%d'),
+                'value': 0.0
+            }, {
+                'date': end_date.strftime('%Y-%m-%d'),
+                'value': 0.0
+            }])
+
     def get_advisor_performance_timeline(self, advisor_id):
-        """Get performance timeline for a specific advisor (master only)"""
+        """Get performance timeline for a specific advisor (master only) with improved error handling"""
         advisor = db.session.get(Advisor, advisor_id)
         if not advisor:
             return jsonify([])
@@ -822,12 +896,25 @@ class APIController(BaseController):
         start_str = request.args.get('start')
         end_str = request.args.get('end')
         
-        analytics_service = AnalyticsService(current_company)
-        timeline_data = analytics_service.get_advisor_performance_timeline(
-            advisor, period, metric_type, start_str, end_str
-        )
-        
-        return jsonify(timeline_data)
+        try:
+            analytics_service = AnalyticsService(current_company)
+            timeline_data = analytics_service.get_advisor_performance_timeline(
+                advisor, period, metric_type, start_str, end_str
+            )
+            return jsonify(timeline_data)
+        except Exception as e:
+            print(f"Error in get_advisor_performance_timeline: {str(e)}")
+            # Return safe fallback data
+            from app.services.date import DateService
+            start_date, end_date = DateService.resolve_period_dates(period, start_str, end_str)
+            
+            return jsonify([{
+                'date': start_date.strftime('%Y-%m-%d'),
+                'value': 0.0
+            }, {
+                'date': end_date.strftime('%Y-%m-%d'),
+                'value': 0.0
+            }])
     
     def get_user_goal_data(self):
         """Get user's yearly goal progress"""
@@ -1304,7 +1391,7 @@ class APIController(BaseController):
         return jsonify(debug_data)
 
     def get_performance_boxplot(self):
-        """Get box plot performance data for current user"""
+        """Get box plot performance data for current user with improved error handling"""
         user = self.get_current_user()
         if not user:
             return jsonify({'periods': [], 'values': [], 'monthly_goals': [], 'current_total': 0, 'monthly_goal': 0})
@@ -1315,15 +1402,70 @@ class APIController(BaseController):
         start_str = request.args.get('start')
         end_str = request.args.get('end')
         
-        analytics_service = AnalyticsService(current_company)
-        boxplot_data = analytics_service.get_advisor_performance_boxplot(
-            user, period, metric_type, start_str, end_str
-        )
-        
-        return jsonify(boxplot_data)
+        try:
+            analytics_service = AnalyticsService(current_company)
+            boxplot_data = analytics_service.get_advisor_performance_boxplot(
+                user, period, metric_type, start_str, end_str
+            )
+            return jsonify(boxplot_data)
+        except Exception as e:
+            print(f"Boxplot failed, falling back to timeline: {str(e)}")
+            
+            # Fallback to timeline data and convert to boxplot format
+            try:
+                analytics_service = AnalyticsService(current_company)
+                timeline_data = analytics_service.get_advisor_performance_timeline(
+                    user, period, metric_type, start_str, end_str
+                )
+                
+                # Convert timeline to boxplot format
+                if not timeline_data:
+                    return jsonify({'periods': [], 'values': [], 'monthly_goals': [], 'current_total': 0, 'monthly_goal': 0})
+                
+                # Take last 10 points and format them nicely
+                recent_data = timeline_data[-10:] if len(timeline_data) > 10 else timeline_data
+                
+                periods = []
+                values = []
+                for item in recent_data:
+                    try:
+                        date_obj = datetime.strptime(item['date'], '%Y-%m-%d')
+                        periods.append(date_obj.strftime('%d %b'))
+                        values.append(item['value'])
+                    except:
+                        periods.append(item['date'])
+                        values.append(item['value'])
+                
+                # Get monthly goal
+                yearly_goal = user.get_yearly_goal_for_company(current_company) or 50000.0
+                monthly_goal = yearly_goal / 12
+                
+                monthly_goals = [monthly_goal] * len(periods) if metric_type == 'submitted' else []
+                
+                return jsonify({
+                    'periods': periods,
+                    'values': values,
+                    'monthly_goals': monthly_goals,
+                    'current_total': values[-1] if values else 0.0,
+                    'monthly_goal': monthly_goal
+                })
+            except Exception as fallback_error:
+                print(f"Timeline fallback also failed: {str(fallback_error)}")
+                # Return safe default data
+                yearly_goal = user.get_yearly_goal_for_company(current_company) or 50000.0
+                monthly_goal = yearly_goal / 12
+                
+                return jsonify({
+                    'periods': ['No Data'],
+                    'values': [0],
+                    'monthly_goals': [monthly_goal] if metric_type == 'submitted' else [],
+                    'current_total': 0,
+                    'monthly_goal': monthly_goal
+                })
+
 
     def get_advisor_performance_boxplot(self, advisor_id):
-        """Get box plot performance data for a specific advisor (master only)"""
+        """Get box plot performance data for a specific advisor (master only) with improved error handling"""
         advisor = db.session.get(Advisor, advisor_id)
         if not advisor:
             return jsonify({'periods': [], 'values': [], 'monthly_goals': [], 'current_total': 0, 'monthly_goal': 0})
@@ -1334,12 +1476,66 @@ class APIController(BaseController):
         start_str = request.args.get('start')
         end_str = request.args.get('end')
         
-        analytics_service = AnalyticsService(current_company)
-        boxplot_data = analytics_service.get_advisor_performance_boxplot(
-            advisor, period, metric_type, start_str, end_str
-        )
-        
-        return jsonify(boxplot_data)
+        try:
+            analytics_service = AnalyticsService(current_company)
+            boxplot_data = analytics_service.get_advisor_performance_boxplot(
+                advisor, period, metric_type, start_str, end_str
+            )
+            return jsonify(boxplot_data)
+        except Exception as e:
+            print(f"Advisor boxplot failed, falling back to timeline: {str(e)}")
+            
+            # Fallback to timeline data and convert to boxplot format
+            try:
+                analytics_service = AnalyticsService(current_company)
+                timeline_data = analytics_service.get_advisor_performance_timeline(
+                    advisor, period, metric_type, start_str, end_str
+                )
+                
+                # Convert timeline to boxplot format
+                if not timeline_data:
+                    return jsonify({'periods': [], 'values': [], 'monthly_goals': [], 'current_total': 0, 'monthly_goal': 0})
+                
+                # Take last 10 points and format them nicely
+                recent_data = timeline_data[-10:] if len(timeline_data) > 10 else timeline_data
+                
+                periods = []
+                values = []
+                for item in recent_data:
+                    try:
+                        date_obj = datetime.strptime(item['date'], '%Y-%m-%d')
+                        periods.append(date_obj.strftime('%d %b'))
+                        values.append(item['value'])
+                    except:
+                        periods.append(item['date'])
+                        values.append(item['value'])
+                
+                # Get monthly goal
+                yearly_goal = advisor.get_yearly_goal_for_company(current_company) or 50000.0
+                monthly_goal = yearly_goal / 12
+                
+                monthly_goals = [monthly_goal] * len(periods) if metric_type == 'submitted' else []
+                
+                return jsonify({
+                    'periods': periods,
+                    'values': values,
+                    'monthly_goals': monthly_goals,
+                    'current_total': values[-1] if values else 0.0,
+                    'monthly_goal': monthly_goal
+                })
+            except Exception as fallback_error:
+                print(f"Advisor timeline fallback also failed: {str(fallback_error)}")
+                # Return safe default data
+                yearly_goal = advisor.get_yearly_goal_for_company(current_company) or 50000.0
+                monthly_goal = yearly_goal / 12
+                
+                return jsonify({
+                    'periods': ['No Data'],
+                    'values': [0],
+                    'monthly_goals': [monthly_goal] if metric_type == 'submitted' else [],
+                    'current_total': 0,
+                    'monthly_goal': monthly_goal
+                })
     
     def advisor_sync(self):
         """Sync data for regular advisors (not master restricted)"""
@@ -1410,3 +1606,42 @@ class APIController(BaseController):
         }
         
         return jsonify(debug_data)
+
+    def toggle_advisor_visibility(self, advisor_id):
+        """Toggle whether an advisor is hidden from team leaderboard and monthly goals"""
+        advisor = db.session.get(Advisor, advisor_id)
+        if not advisor:
+            return jsonify({'error': 'Advisor not found'}), 404
+        
+        if advisor.is_master:
+            return jsonify({'error': 'Cannot hide master users'}), 400
+        
+        # Toggle the visibility
+        advisor.is_hidden_from_team = not advisor.is_hidden_from_team
+        
+        try:
+            db.session.commit()
+            
+            status = "hidden from team" if advisor.is_hidden_from_team else "visible to team"
+            return jsonify({
+                'success': True,
+                'message': f'{advisor.full_name} is now {status}',
+                'advisor_id': advisor.id,
+                'is_hidden': advisor.is_hidden_from_team
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': f'Failed to update advisor visibility: {str(e)}'}), 500
+
+    def get_advisor_visibility_status(self, advisor_id):
+        """Get the current visibility status of an advisor"""
+        advisor = db.session.get(Advisor, advisor_id)
+        if not advisor:
+            return jsonify({'error': 'Advisor not found'}), 404
+        
+        return jsonify({
+            'advisor_id': advisor.id,
+            'advisor_name': advisor.full_name,
+            'is_hidden_from_team': advisor.is_hidden_from_team,
+            'is_master': advisor.is_master
+        })

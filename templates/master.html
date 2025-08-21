@@ -78,6 +78,10 @@
                                 {% else %}
                                 <span class="status-badge status-assigned">Team Member</span>
                                 {% endif %}
+                                <!-- NEW: Individual advisor visibility status -->
+                                {% if member.is_hidden_from_team %}
+                                <span class="status-badge status-individual-hidden">Hidden from Team</span>
+                                {% endif %}
                                 
                                 <!-- NEW: Show if member is in multiple teams -->
                                 {% set member_teams = member.get_teams_for_company(session.get('company_mode', 'windsor')) %}
@@ -93,6 +97,27 @@
                                 </span>
                                 <button class="btn-sm btn-view" onclick="viewAdvisorDashboard({{ member.id }})">
                                     👁️ View
+                                </button>
+                                <!-- NEW: Hide/Show button for individual advisors -->
+                                {% if not member.is_master %}
+                                <button class="btn-sm btn-hide-advisor" 
+                                        id="hide-btn-{{ member.id }}"
+                                        onclick="toggleAdvisorVisibility({{ member.id }}, '{{ member.full_name }}')"
+                                        style="background: {% if member.is_hidden_from_team %}#28a745{% else %}#ffc107{% endif %}; 
+                                            color: {% if member.is_hidden_from_team %}white{% else %}#212529{% endif %};">
+                                    {% if member.is_hidden_from_team %}
+                                        👁️ Show
+                                    {% else %}
+                                        🙈 Hide
+                                    {% endif %}
+                                </button>
+                                {% endif %}
+                                
+                                <button class="btn-sm btn-edit" onclick="setAdvisorGoal({{ member.id }}, '{{ member.full_name }}', {{ member.get_yearly_goal_for_company(session.get('company_mode', 'windsor')) }})">
+                                    ✏️ Edit
+                                </button>
+                                <button class="btn-sm btn-remove" onclick="removeFromTeam({{ member.id }}, {{ team.id }}, '{{ member.full_name }}', '{{ team.name }}')">
+                                    ❌ Remove
                                 </button>
                                 <button class="btn-sm btn-goal" onclick="editAdvisorGoal({{ member.id }}, '{{ member.full_name }}', {{ member.get_yearly_goal_for_company(session.get('company_mode', 'windsor')) }})">
                                     🎯 Goal
@@ -1503,6 +1528,114 @@
                 }
             } catch (error) {
                 alert('Error: ' + error.message);
+            }
+        }
+
+        let notificationCount = 0;
+
+        function showNotification(message, type = 'info', duration = 5000) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.id = `notification-${++notificationCount}`;
+            
+            notification.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>${message}</span>
+                    <button onclick="hideNotification('${notification.id}')" 
+                            style="background: none; border: none; color: inherit; font-size: 1.2rem; cursor: pointer; margin-left: 1rem;">&times;</button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-hide after duration
+            setTimeout(() => {
+                hideNotification(notification.id);
+            }, duration);
+            
+            return notification.id;
+        }
+
+        function hideNotification(notificationId) {
+            const notification = document.getElementById(notificationId);
+            if (notification) {
+                notification.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }
+        }
+
+        // Main notification functions used by your advisor hiding feature
+        function showSuccess(message, duration = 5000) {
+            return showNotification(message, 'success', duration);
+        }
+
+        function showError(message, duration = 7000) {
+            return showNotification(message, 'error', duration);
+        }
+
+        function showInfo(message, duration = 5000) {
+            return showNotification(message, 'info', duration);
+        }
+
+        function showWarning(message, duration = 6000) {
+            return showNotification(message, 'warning', duration);
+        }
+
+        // Toggle advisor visibility function
+        function toggleAdvisorVisibility(advisorId, advisorName) {
+            if (confirm(`Are you sure you want to toggle visibility for ${advisorName}?`)) {
+                fetch(`/api/toggle-advisor-visibility/${advisorId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showSuccess(data.message);
+                        
+                        // Update the button appearance
+                        const button = document.getElementById(`hide-btn-${advisorId}`);
+                        if (data.is_hidden) {
+                            button.innerHTML = '👁️ Show';
+                            button.style.background = '#28a745';
+                            button.style.color = 'white';
+                            
+                            // Add hidden status badge if it doesn't exist
+                            const memberItem = button.closest('.member-item');
+                            const existingBadge = memberItem.querySelector('.status-badge.status-individual-hidden');
+                            if (!existingBadge) {
+                                const advisorLink = memberItem.querySelector('a');
+                                const hiddenBadge = document.createElement('span');
+                                hiddenBadge.className = 'status-badge status-individual-hidden';
+                                hiddenBadge.textContent = 'Hidden from Team';
+                                advisorLink.parentNode.appendChild(hiddenBadge);
+                            }
+                        } else {
+                            button.innerHTML = '🙈 Hide';
+                            button.style.background = '#ffc107';
+                            button.style.color = '#212529';
+                            
+                            // Remove hidden status badge
+                            const memberItem = button.closest('.member-item');
+                            const hiddenBadge = memberItem.querySelector('.status-badge.status-individual-hidden');
+                            if (hiddenBadge) {
+                                hiddenBadge.remove();
+                            }
+                        }
+                    } else {
+                        showError(data.error || 'Failed to toggle advisor visibility');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showError('Failed to toggle advisor visibility');
+                });
             }
         }
 

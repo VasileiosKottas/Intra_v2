@@ -691,7 +691,7 @@
             }
         }
 
-        // Initialize dashboard
+        // Enhanced initialization with better error handling
         document.addEventListener('DOMContentLoaded', function() {
             // Ensure modal starts hidden
             const modal = document.getElementById('customDateModal');
@@ -700,22 +700,42 @@
                 modal.classList.remove('show');
             }
             
-            setupEventListeners();
-            updateCaseTypeFilter(); // Set up initial case type options
-            loadDashboardData();
-            loadUserGoalData();
-            loadTeamData();
-            loadUserCases();
-            initializeChart();
-            
-            // Auto-refresh every minute
-            setInterval(() => {
-                loadDashboardData();
-                loadUserGoalData();
-                loadTeamData();
-                loadUserCases();
-                updateChart();
-            }, 60000);
+            try {
+                setupEventListeners();
+                updateCaseTypeFilter();
+                
+                // Load data with error handling
+                Promise.all([
+                    loadDashboardData().catch(e => handleApiError(e, 'loadDashboardData')),
+                    loadUserGoalData().catch(e => handleApiError(e, 'loadUserGoalData')),
+                    loadTeamData().catch(e => handleApiError(e, 'loadTeamData')),
+                    loadUserCases().catch(e => handleApiError(e, 'loadUserCases')),
+                    initializeChart().catch(e => handleApiError(e, 'initializeChart'))
+                ]).then(() => {
+                    console.log('✅ Dashboard initialization completed');
+                }).catch(e => {
+                    console.error('❌ Dashboard initialization failed:', e);
+                });
+                
+                // Load user teams if available
+                if (typeof loadUserTeams === 'function') {
+                    loadUserTeams().catch(e => handleApiError(e, 'loadUserTeams'));
+                }
+                
+                // Auto-refresh every minute with error handling
+                setInterval(() => {
+                    Promise.all([
+                        loadDashboardData().catch(e => console.warn('Auto-refresh failed for dashboard data')),
+                        loadUserGoalData().catch(e => console.warn('Auto-refresh failed for goal data')),
+                        loadTeamData().catch(e => console.warn('Auto-refresh failed for team data')),
+                        loadUserCases().catch(e => console.warn('Auto-refresh failed for cases')),
+                        updateChart().catch(e => console.warn('Auto-refresh failed for chart'))
+                    ]);
+                }, 60000);
+                
+            } catch (error) {
+                console.error('Critical error during dashboard initialization:', error);
+            }
         });
 
         function setupEventListeners() {
@@ -993,19 +1013,26 @@
             }
         }
 
-        // Load user's teams for team selector
+        // Enhanced loadUserTeams function with better error handling
         async function loadUserTeams() {
             try {
-                const response = await fetch('/api/user-teams', { cache: 'no-store' });
+                const response = await fetch('/api/user-teams', { 
+                    cache: 'no-store',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
                 if (response.ok) {
                     const allTeams = await response.json();
                     // Filter out hidden teams for non-master users
-                    userTeams = allTeams.filter(team => !team.is_hidden);
+                    userTeams = Array.isArray(allTeams) ? allTeams.filter(team => !team.is_hidden) : [];
                     updateTeamSelector();
                     updateTeamInfoBanner();
                     updateMultipleTeamsFooter();
                 } else {
-                    console.warn('Could not load user teams');
+                    console.warn('Could not load user teams:', response.status, response.statusText);
                     userTeams = [];
                 }
             } catch (error) {
@@ -1400,7 +1427,18 @@
                 `;
             }
         }
-
+        function handleApiError(error, context) {
+            console.error(`API Error in ${context}:`, error);
+            
+            // Show user-friendly error message for network issues
+            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                console.warn(`Network error in ${context} - check connection`);
+            } else if (error.message.includes('404')) {
+                console.warn(`API endpoint not found for ${context}`);
+            } else {
+                console.warn(`Unexpected error in ${context}:`, error.message);
+            }
+        }
         async function initializeChart() {
             const ctx = document.getElementById('performance-chart').getContext('2d');
             
@@ -1494,29 +1532,65 @@
                     url += `&start=${customStartDate}&end=${customEndDate}`;
                 }
                 
-                const response = await fetch(url, { cache: 'no-store' });
+                console.log('Fetching chart data from:', url);
+                const response = await fetch(url, { 
+                    cache: 'no-store',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const data = await response.json();
+                
+
+                // Validate data structure
+                if (!data || !Array.isArray(data.periods) || !Array.isArray(data.values)) {
+                    console.warn('Invalid data structure, falling back to timeline');
+                    await updateOriginalChart();
+                    return;
+                }
 
                 // Update chart data
-                performanceChart.data.labels = data.periods;
-                performanceChart.data.datasets[0].data = data.values;
+                performanceChart.data.labels = data.periods || [];
+                performanceChart.data.datasets[0].data = data.values || [];
                 performanceChart.data.datasets[0].label = currentChartType === 'submitted' ? 'Total Submitted' : 'Total Paid';
                 performanceChart.data.datasets[0].backgroundColor = currentChartType === 'submitted' ? 'rgba(52, 152, 219, 0.8)' : 'rgba(46, 204, 113, 0.8)';
                 performanceChart.data.datasets[0].borderColor = currentChartType === 'submitted' ? '#3498db' : '#2ecc71';
                 
-                // Update goal line
-                performanceChart.data.datasets[1].data = data.monthly_goals;
+                // Show/hide goal line based on chart type
+                if (currentChartType === 'submitted' && data.monthly_goals && data.monthly_goals.length > 0) {
+                    performanceChart.data.datasets[1].data = data.monthly_goals;
+                    performanceChart.data.datasets[1].hidden = false;
+                } else {
+                    performanceChart.data.datasets[1].data = [];
+                    performanceChart.data.datasets[1].hidden = true;
+                }
                 
                 performanceChart.update();
 
-                // Update stats
+                // Update stats safely
                 const total = data.current_total || 0;
-                const best = Math.max(...data.values, 0);
+                const best = data.values && data.values.length > 0 ? Math.max(...data.values, 0) : 0;
                 const monthlyGoal = data.monthly_goal || 0;
                 
-                document.getElementById('chart-total').textContent = total.toFixed(2);
-                document.getElementById('chart-best').textContent = best.toFixed(2);
-                document.getElementById('monthly-goal').textContent = monthlyGoal.toFixed(2);
+                const safeUpdateElement = (id, value) => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = value;
+                    }
+                };
+                
+                safeUpdateElement('chart-total', total.toFixed(2));
+                safeUpdateElement('chart-best', best.toFixed(2));
+                
+                // Handle different goal element names
+                safeUpdateElement('monthly-goal', monthlyGoal.toFixed(2));
+                safeUpdateElement('yearly-goal', (monthlyGoal * 12).toFixed(2));
 
             } catch (error) {
                 console.error('Error updating chart:', error);
@@ -1525,7 +1599,7 @@
             }
         }
 
-        // Fallback to original chart format
+        // Enhanced fallback function
         async function updateOriginalChart() {
             try {
                 let url = `/api/performance-timeline?period=${currentPeriod}&type=${currentChartType}`;
@@ -1533,27 +1607,100 @@
                     url += `&start=${customStartDate}&end=${customEndDate}`;
                 }
                 
-                const response = await fetch(url, { cache: 'no-store' });
+                console.log('Fetching timeline fallback data from:', url);
+                const response = await fetch(url, { 
+                    cache: 'no-store',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const data = await response.json();
+                console.log('Timeline fallback data received:', data);
+
+                if (!Array.isArray(data) || data.length === 0) {
+                    console.warn('No timeline data available, using empty chart');
+                    performanceChart.data.labels = ['No Data'];
+                    performanceChart.data.datasets[0].data = [0];
+                    performanceChart.data.datasets[1].data = [];
+                    performanceChart.data.datasets[1].hidden = true;
+                    performanceChart.update();
+                    return;
+                }
 
                 // Convert line chart to bar chart data
-                const periods = data.map(item => new Date(item.date).toLocaleDateString());
-                const values = data.map(item => item.value);
+                const periods = data.map(item => {
+                    try {
+                        return new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                    } catch {
+                        return item.date;
+                    }
+                });
+                const values = data.map(item => item.value || 0);
                 
-                performanceChart.data.labels = periods.slice(-10); // Show last 10 data points
-                performanceChart.data.datasets[0].data = values.slice(-10);
-                performanceChart.data.datasets[1].data = Array(Math.min(periods.length, 10)).fill(0);
+                // Show last 10 data points
+                const maxPoints = 10;
+                const displayPeriods = periods.slice(-maxPoints);
+                const displayValues = values.slice(-maxPoints);
+                
+                performanceChart.data.labels = displayPeriods;
+                performanceChart.data.datasets[0].data = displayValues;
+                
+                // Show/hide goal line based on chart type
+                if (currentChartType === 'submitted') {
+                    // Use a simple goal line - will be replaced with proper data
+                    performanceChart.data.datasets[1].data = Array(displayValues.length).fill(0);
+                    performanceChart.data.datasets[1].hidden = false;
+                } else {
+                    performanceChart.data.datasets[1].data = [];
+                    performanceChart.data.datasets[1].hidden = true;
+                }
                 
                 performanceChart.update();
 
-                const total = data.length > 0 ? data[data.length - 1].value : 0;
+                // Update stats
+                const total = data.length > 0 ? data[data.length - 1].value || 0 : 0;
                 const best = Math.max(...values, 0);
-                document.getElementById('chart-total').textContent = total.toFixed(2);
-                document.getElementById('chart-best').textContent = best.toFixed(2);
-                document.getElementById('monthly-goal').textContent = '0.00';
+                
+                const safeUpdateElement = (id, value) => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = value;
+                    }
+                };
+                
+                safeUpdateElement('chart-total', total.toFixed(2));
+                safeUpdateElement('chart-best', best.toFixed(2));
+                safeUpdateElement('monthly-goal', '0.00');
+                safeUpdateElement('yearly-goal', '0.00');
 
             } catch (error) {
-                console.error('Error with fallback chart:', error);
+                console.error('Error with timeline fallback:', error);
+                
+                // Final fallback - show empty chart with message
+                performanceChart.data.labels = ['No Data Available'];
+                performanceChart.data.datasets[0].data = [0];
+                performanceChart.data.datasets[1].data = [];
+                performanceChart.data.datasets[1].hidden = true;
+                performanceChart.update();
+                
+                // Update stats to zeros
+                const safeUpdateElement = (id, value) => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = value;
+                    }
+                };
+                
+                safeUpdateElement('chart-total', '0.00');
+                safeUpdateElement('chart-best', '0.00');
+                safeUpdateElement('monthly-goal', '0.00');
+                safeUpdateElement('yearly-goal', '0.00');
             }
         }
 

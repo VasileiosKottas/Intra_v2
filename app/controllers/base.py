@@ -65,9 +65,17 @@ class BaseController:
     def get_visible_team_members(self, user: Advisor, current_company: str) -> list:
         """Get team members that the user should see (handles multiple teams and visibility)"""
         if user.is_master:
-            # Masters can see all members from the user's primary team
+            # Masters can see all members from the user's primary team (including hidden ones)
             primary_team = user.get_primary_team_for_company(current_company)
             return primary_team.members if primary_team else []
+        
+        user_team = user.get_team_for_company(current_company)
+        if not user_team:
+        # No team assignment
+            return []
+        if user_team.is_hidden:
+            # If user is in a hidden team, they only see themselves
+            return [user]
         
         # Get user's visible team (non-hidden)
         visible_team = user.get_visible_team_for_company(current_company)
@@ -76,9 +84,11 @@ class BaseController:
             # User is in a visible team - show all members of that team
             # but exclude members who are ONLY in hidden teams
             visible_members = []
-            for member in visible_team.members:
-                if not member.is_in_hidden_team_only(current_company):
+            for member in user_team.members:
+                # Check if member is visible (not hidden from team)
+                if member.is_visible_to_advisor(user):
                     visible_members.append(member)
+            
             return visible_members
         else:
             # User is only in hidden teams or no teams - only show themselves
