@@ -183,6 +183,21 @@ class APIController(BaseController):
         SessionManager.set_current_company(session, company)
         return jsonify({'success': True, 'company': company})
 
+    def _get_referral_name_mappings(self):
+        """Get hardcoded referral name mappings for backward compatibility"""
+        from app.config import config_manager
+        current_company = SessionManager.get_current_company(session)
+        
+        # Get the company configuration
+        company_config = config_manager.get_company_config(current_company)
+        
+        # Return the name mappings from the company config
+        if company_config and hasattr(company_config, 'name_mappings'):
+            return company_config.name_mappings
+        
+        # Return empty dict if no mappings found
+        return {}
+
     def _check_referral_match(self, referral_to_value, advisor_full_name, advisor_id, current_company):
         """Check if a referral_to value matches an advisor using database mappings"""
         if not referral_to_value or not advisor_full_name:

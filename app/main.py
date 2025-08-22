@@ -26,7 +26,8 @@ class SalesDashboardApp:
             
     def start_background_services(self):
         """Start background sync services"""
-        self.sync_manager = AutoSyncManager()
+        # CRITICAL FIX: Pass the Flask app instance to AutoSyncManager
+        self.sync_manager = AutoSyncManager(self.app)
         
         # Initial sync
         with self.app.app_context():

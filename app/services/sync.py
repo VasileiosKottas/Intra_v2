@@ -128,19 +128,24 @@ class AutoSyncManager:
             return
         
         self.sync_running = True
-        print(f" Starting automatic sync for {company} at {datetime.now()}")
+        print(f"🔄 Starting automatic sync for {company} at {datetime.now()}")
         
         try:
-            sync_service = DataSyncService(company)
-            submissions_added, paid_cases_added, success, error = sync_service.perform_sync()
-            
-            if success:
-                print(f" Auto sync completed for {company}! Added {submissions_added} submissions and {paid_cases_added} paid cases")
+            # CRITICAL FIX: Ensure we have Flask app context for database operations
+            if self.app:
+                with self.app.app_context():
+                    sync_service = DataSyncService(company)
+                    submissions_added, paid_cases_added, success, error = sync_service.perform_sync()
+                    
+                    if success:
+                        print(f"✅ Auto sync completed for {company}! Added {submissions_added} submissions and {paid_cases_added} paid cases")
+                    else:
+                        print(f"❌ Auto sync failed for {company}: {error}")
             else:
-                print(f" Auto sync failed for {company}: {error}")
+                print(f"❌ Cannot sync {company}: No Flask app context available")
                 
         except Exception as e:
-            print(f" Auto sync failed for {company}: {e}")
+            print(f"❌ Auto sync failed for {company}: {e}")
         finally:
             self.sync_running = False
     
