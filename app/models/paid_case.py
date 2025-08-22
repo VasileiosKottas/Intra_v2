@@ -17,3 +17,4 @@ class PaidCase(BaseModel):
     date_paid = db.Column(db.Date, nullable=False)
     company = db.Column(db.String(50), default='windsor')
     jotform_id = db.Column(db.String(50), unique=True)
+    who_referred = db.Column(db.String(200), nullable=True)  # NEW: Who referred this case

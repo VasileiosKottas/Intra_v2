@@ -35,12 +35,12 @@ class JotFormService:
         
         self.paid_field_map = {
             'advisor_name': '5',
+            'who_referred': '9',
             'case_type': '8',
             'value': '12',
             'customer_name': '4',
             'date_paid': '13'
         }
-    
     def _make_request(self, endpoint: str, params: Optional[Dict] = None) -> Optional[Dict]:
         """Make a request to the JotForm API"""
         url = f"{self.base_url}{endpoint}"
@@ -207,7 +207,7 @@ class JotFormService:
             return []
         
         processed_cases = []
-    
+
         for case in paid_data:
             try:
                 data = case.get("mapped_data", {})
@@ -219,7 +219,9 @@ class JotFormService:
                 try:
                     value_raw = data.get("value", "")
                     if value_raw and value_raw != "No Answer":
-                        value = float(str(value_raw).replace('£', '').replace(',', '') or 0)
+                        # Handle negative values properly
+                        value_str = str(value_raw).replace('£', '').replace(',', '').strip()
+                        value = float(value_str or 0)
                     else:
                         value = 0
                 except (ValueError, TypeError):
@@ -229,10 +231,11 @@ class JotFormService:
                 if not date_paid:
                     date_paid = self._parse_date(case.get("created_at", ""))
                 
-                # Company-specific filtering
+                # Company-specific filtering - FIXED: Remove the value > 0 condition
+                # This allows negative values (adjustments, refunds, etc.) to be included
                 if (advisor_name and 
                     self.config.is_valid_paid_case_type(case_type) and 
-                    value > 0):
+                    value != 0):  # Only exclude zero values, allow negative values
                     processed_cases.append({
                         'advisor_name': advisor_name,
                         'case_type': case_type,

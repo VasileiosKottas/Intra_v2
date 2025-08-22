@@ -56,14 +56,17 @@ class DataSyncService:
         return submissions_added
     
     def sync_paid_cases(self) -> int:
-        """Sync paid cases for the company"""
+        """Sync paid cases for the company - ENHANCED to update existing records"""
         paid_cases = self.jotform_service.process_paid_cases()
         paid_cases_added = 0
+        paid_cases_updated = 0
         
         for case_data in paid_cases:
             try:
                 existing = PaidCase.query.filter_by(jotform_id=case_data['jotform_id']).first()
+                
                 if not existing:
+                    # Create new paid case
                     advisor = Advisor.query.filter_by(
                         full_name=case_data['advisor_name']
                     ).first()
@@ -75,15 +78,33 @@ class DataSyncService:
                         case_type=case_data['case_type'],
                         value=case_data['value'],
                         date_paid=case_data['date_paid'],
+                        who_referred=case_data.get('who_referred'),  # Include who_referred
                         company=self.company,
                         jotform_id=case_data['jotform_id']
                     )
                     paid_case.save()
                     paid_cases_added += 1
+                
+                else:
+                    # Update existing record if who_referred is missing or different
+                    needs_update = False
+                    
+                    new_who_referred = case_data.get('who_referred', '').strip()
+                    current_who_referred = (existing.who_referred or '').strip()
+                    
+                    if new_who_referred != current_who_referred:
+                        existing.who_referred = new_who_referred
+                        needs_update = True
+                    
+                    if needs_update:
+                        db.session.commit()
+                        paid_cases_updated += 1
+                        
             except Exception as e:
-                print(f"❌ Error adding paid case: {e}")
+                print(f"❌ Error processing paid case: {e}")
                 continue
         
+        print(f"✅ Sync completed: {paid_cases_added} new cases, {paid_cases_updated} updated cases")
         return paid_cases_added
     
     def perform_sync(self) -> Tuple[int, int, bool, str]:
@@ -118,9 +139,9 @@ class DataSyncService:
 class AutoSyncManager:
     """Manages automatic synchronization with JotForm for all companies"""
     
-    def __init__(self):
+    def __init__(self, app=None):
         self.sync_running = False
-    
+        self.app = app
     def sync_data_automatic(self, company: str = 'windsor'):
         """Automatic sync function for specific company"""
         if self.sync_running:

@@ -171,7 +171,7 @@ class Advisor(BaseModel):
         return cases
     
     def calculate_metrics_for_period(self, company, start_date, end_date, valid_submission_types=None, valid_case_types=None):
-        """Calculate comprehensive metrics for a period"""
+        """Calculate comprehensive metrics for a period with enhanced avg case size"""
         submissions = self.get_submissions_for_period(company, start_date, end_date, valid_submission_types)
         paid_cases = self.get_paid_cases_for_period(company, start_date, end_date, valid_case_types)
         
@@ -194,6 +194,11 @@ class Advisor(BaseModel):
                 applications[submission.business_type] = 0
             applications[submission.business_type] += 1
         
+        # ENHANCED: Calculate new average case size using your formula
+        enhanced_avg_case_size = self.calculate_enhanced_avg_case_size(
+            company, start_date, end_date, valid_case_types
+        )
+        
         return {
             'total_submitted': total_submitted,
             'total_fee': total_fee,
@@ -203,9 +208,12 @@ class Advisor(BaseModel):
             'applications': applications,
             'referrals_made': referrals_made,
             'submissions_count': len(valid_submissions),
-            'paid_cases_count': len(paid_cases)
+            'paid_cases_count': len(paid_cases),
+            # NEW: Enhanced average case size data
+            'avg_case_size': enhanced_avg_case_size['avg_case_size'],
+            'avg_case_size_breakdown': enhanced_avg_case_size
         }
-
+    
     def is_visible_to_advisor(self, viewing_advisor):
         """Check if this advisor should be visible to another advisor"""
         if viewing_advisor.is_master:
@@ -227,3 +235,146 @@ class Advisor(BaseModel):
                 visible_members.append(member)
         
         return visible_members
+
+    def calculate_enhanced_avg_case_size(self, company, start_date, end_date, valid_case_types=None):
+        """
+        Calculate enhanced average case size using your CORRECT formula:
+        avg_case_size = (total_paid / residential_cases) - insurance_referred_to_me + insurance_referred_by_me
+        
+        Where:
+        - total_paid / residential_cases = average per residential case
+        - insurance_referred_to_me = COUNT of insurance cases where who_referred contains advisor's name
+        - insurance_referred_by_me = COUNT of other insurance cases by this advisor
+        """
+        from app.models.paid_case import PaidCase
+        from sqlalchemy import and_, or_
+        
+        # Get all paid cases for this advisor in the period
+        query = PaidCase.query.filter(
+            and_(
+                PaidCase.date_paid >= start_date,
+                PaidCase.date_paid <= end_date,
+                PaidCase.company == company,
+                or_(
+                    PaidCase.advisor_id == self.id,
+                    and_(PaidCase.advisor_id.is_(None), PaidCase.advisor_name == self.full_name)
+                )
+            )
+        )
+        
+        all_cases = query.all()
+        if valid_case_types:
+            all_cases = [c for c in all_cases if c.case_type in valid_case_types]
+        
+        # Calculate components
+        total_paid = sum(case.value for case in all_cases)
+        
+        # Count residential cases
+        residential_cases = len([case for case in all_cases 
+                            if 'residential' in case.case_type.lower()])
+        
+        # Count insurance cases referred TO me (where who_referred contains my name)
+        insurance_referred_to_me = 0
+        insurance_referred_by_me = 0
+        
+        for case in all_cases:
+            if 'insurance' in case.case_type.lower():
+                if (case.who_referred and 
+                    self._name_matches_referral(case.who_referred)):
+                    insurance_referred_to_me += 1
+                else:
+                    insurance_referred_by_me += 1
+        
+        # Apply YOUR CORRECT formula:
+        # avg_case_size = (total_paid / residential_cases) - insurance_referred_to_me + insurance_referred_by_me
+        
+        if residential_cases > 0:
+            avg_residential = total_paid / residential_cases
+            avg_case_size = avg_residential - insurance_referred_to_me + insurance_referred_by_me
+        else:
+            avg_case_size = 0 - insurance_referred_to_me + insurance_referred_by_me
+        
+        return {
+            'avg_case_size': round(avg_case_size, 2),
+            'total_paid': total_paid,
+            'residential_cases': residential_cases,
+            'avg_per_residential': round(avg_residential, 2) if residential_cases > 0 else 0,
+            'insurance_referred_to_me': insurance_referred_to_me,
+            'insurance_referred_by_me': insurance_referred_by_me,
+            'total_cases': len(all_cases),
+            'formula_breakdown': {
+                'step1_avg_residential': round(avg_residential, 2) if residential_cases > 0 else 0,
+                'step2_minus_referred_to_me': insurance_referred_to_me,
+                'step3_plus_referred_by_me': insurance_referred_by_me,
+                'final_result': round(avg_case_size, 2)
+            }
+        }
+
+
+    def _name_matches_referral(self, who_referred_text):
+        """Check if who_referred text contains this advisor's name"""
+        if not who_referred_text or not self.full_name:
+            return False
+        
+        who_referred_lower = who_referred_text.lower()
+        advisor_name_lower = self.full_name.lower()
+        
+        # Direct full name match
+        if advisor_name_lower in who_referred_lower:
+            return True
+        
+        # Check first name match
+        first_name = advisor_name_lower.split()[0] if advisor_name_lower else ""
+        if first_name and len(first_name) > 2 and first_name in who_referred_lower:
+            return True
+        
+        # Check last name match
+        last_name = advisor_name_lower.split()[-1] if advisor_name_lower and len(advisor_name_lower.split()) > 1 else ""
+        if last_name and len(last_name) > 2 and last_name in who_referred_lower:
+            return True
+        
+        return False
+    
+    def calculate_metrics_for_period(self, company, start_date, end_date, valid_submission_types=None, valid_case_types=None):
+        """Calculate comprehensive metrics for a period with enhanced avg case size"""
+        submissions = self.get_submissions_for_period(company, start_date, end_date, valid_submission_types)
+        paid_cases = self.get_paid_cases_for_period(company, start_date, end_date, valid_case_types)
+        
+        # Filter submissions for valid business types and referrals
+        valid_submissions = [s for s in submissions if valid_submission_types and s.business_type in valid_submission_types]
+        
+        # Count referrals separately - get ALL submissions without any business type filtering
+        all_user_submissions = self.get_submissions_for_period(company, start_date, end_date, None)
+        referrals_made = len([s for s in all_user_submissions if s.business_type == 'Referral'])
+        
+        # Calculate totals
+        total_submitted = sum((s.expected_proc or 0) + (s.expected_fee or 0) for s in valid_submissions)
+        total_fee = sum(s.expected_fee or 0 for s in valid_submissions)
+        total_paid = sum(p.value for p in paid_cases)
+        
+        # Calculate applications breakdown
+        applications = {}
+        for submission in valid_submissions:
+            if submission.business_type not in applications:
+                applications[submission.business_type] = 0
+            applications[submission.business_type] += 1
+        
+        # ENHANCED: Calculate new average case size using your formula
+        enhanced_avg_case_size = self.calculate_enhanced_avg_case_size(
+            company, start_date, end_date, valid_case_types
+        )
+        
+        return {
+            'total_submitted': total_submitted,
+            'total_fee': total_fee,
+            'combined_total': total_submitted,
+            'total_paid': total_paid,
+            'payment_percentage': (total_paid / total_submitted * 100) if total_submitted > 0 else 0,
+            'applications': applications,
+            'referrals_made': referrals_made,
+            'submissions_count': len(valid_submissions),
+            'paid_cases_count': len(paid_cases),
+            # NEW: Enhanced average case size data
+            'avg_case_size': enhanced_avg_case_size['avg_case_size'],
+            'avg_case_size_breakdown': enhanced_avg_case_size
+        }

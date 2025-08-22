@@ -709,12 +709,17 @@ class APIController(BaseController):
             yearly_goal = member.get_yearly_goal_for_company(current_company) or 0.0
             goal_progress = (metrics['total_submitted'] / yearly_goal * 100) if yearly_goal > 0 else 0.0
             
+            enhanced_avg = member.calculate_enhanced_avg_case_size(
+                current_company, start_date, end_date,
+                config_manager.get_valid_paid_case_types(current_company)
+            )
+
             team_members.append({
                 'name': member.full_name,
-                'total_submitted': float(metrics.get('total_submitted', 0.0)),
-                'total_paid': float(metrics.get('total_paid', 0.0)),
-                'avg_case_size': float((metrics['total_paid'] / metrics['paid_cases_count']) if metrics.get('paid_cases_count', 0) > 0 else 0.0),
-                'goal_progress': float(goal_progress)
+                'total_submitted': metrics['total_submitted'],
+                'total_paid': metrics['total_paid'],
+                'avg_case_size': enhanced_avg['avg_case_size'],  # NEW: Use your enhanced formula
+                'goal_progress': goal_progress
             })
             
             total_team_submitted += float(metrics.get('total_submitted', 0.0))

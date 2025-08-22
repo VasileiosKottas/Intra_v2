@@ -960,17 +960,19 @@
                 document.getElementById('payment-progress').style.width = `${Math.min(data.payment_percentage, 100)}%`;
                 const totalApps = Object.values(data.applications).reduce((sum, count) => sum + count, 0);
                 document.getElementById('total-applications').textContent = totalApps;
-                document.getElementById('avg-per-application').textContent = totalApps > 0 ? (data.combined_total / totalApps).toFixed(2) : '0.00';
+                document.getElementById('avg-per-application').textContent = 
+                    data.avg_case_size ? data.avg_case_size.toFixed(2) : '0.00';
+
 
                 document.getElementById('referrals-made').textContent = data.referrals_made;
                 document.getElementById('referrals-made-count').textContent = data.referrals_made;
                 document.getElementById('referrals-received-count').textContent = data.referrals_received;
-
-                const breakdown = Object.entries(data.applications)
+                // document.getElementById('avg-per-application').textContent = 
+                //     data.avg_case_size ? data.avg_case_size.toFixed(2) : '0.00';
+                const breakdown = Object.entries(data.applications || {})
                     .map(([type, count]) => `${type}: ${count}`)
                     .join(', ');
                 document.getElementById('applications-breakdown').textContent = breakdown || 'No applications';
-
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
             }
