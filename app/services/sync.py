@@ -21,9 +21,9 @@ class DataSyncService:
     def __init__(self, company: str):
         self.company = company
         self.jotform_service = JotFormService(company)
-    
+        
     def sync_submissions(self) -> int:
-        """Sync submissions for the company with income_type support"""
+        """Sync submissions for the company - UPDATE existing records"""
         submissions = self.jotform_service.process_submissions()
         submissions_added = 0
         submissions_updated = 0
@@ -47,25 +47,29 @@ class DataSyncService:
                         expected_proc=submission_data['expected_proc'],
                         expected_fee=submission_data['expected_fee'],
                         referral_to=submission_data['referral_to'],
-                        income_type=submission_data.get('income_type'),  # NEW: Add income_type
                         company=self.company,
                         jotform_id=submission_data['jotform_id']
                     )
                     submission.save()
                     submissions_added += 1
-                    
                 else:
-                    # Update existing submission if income_type is missing or different
+                    # Update existing submission with new data from JotForm
                     needs_update = False
                     
-                    new_income_type = submission_data.get('income_type', '').strip()
-                    current_income_type = (existing.income_type or '').strip()
-                    
-                    if new_income_type != current_income_type:
-                        existing.income_type = new_income_type
+                    # Check each field for changes
+                    if existing.advisor_name != submission_data['advisor_name']:
+                        existing.advisor_name = submission_data['advisor_name']
+                        # Also update advisor_id if advisor name changed
+                        advisor = Advisor.query.filter_by(
+                            full_name=submission_data['advisor_name']
+                        ).first()
+                        existing.advisor_id = advisor.id if advisor else None
                         needs_update = True
                     
-                    # Also update other fields that might have changed
+                    if existing.business_type != submission_data['business_type']:
+                        existing.business_type = submission_data['business_type']
+                        needs_update = True
+                    
                     if existing.customer_name != submission_data['customer_name']:
                         existing.customer_name = submission_data['customer_name']
                         needs_update = True
@@ -73,9 +77,13 @@ class DataSyncService:
                     if existing.expected_proc != submission_data['expected_proc']:
                         existing.expected_proc = submission_data['expected_proc']
                         needs_update = True
-                        
+                    
                     if existing.expected_fee != submission_data['expected_fee']:
                         existing.expected_fee = submission_data['expected_fee']
+                        needs_update = True
+                    
+                    if existing.referral_to != submission_data['referral_to']:
+                        existing.referral_to = submission_data['referral_to']
                         needs_update = True
                     
                     if needs_update:
@@ -83,14 +91,12 @@ class DataSyncService:
                         submissions_updated += 1
                         
             except Exception as e:
-                print(f"Error adding/updating submission: {e}")
+                print(f"❌ Error processing submission: {e}")
                 continue
         
-        if submissions_updated > 0:
-            print(f"Sync completed: {submissions_added} new submissions, {submissions_updated} updated submissions")
-        
+        print(f"✅ Submissions sync completed: {submissions_added} new, {submissions_updated} updated")
         return submissions_added
-    
+
     def sync_paid_cases(self) -> int:
         """Sync paid cases for the company with income_type and enhanced who_referred support"""
         paid_cases = self.jotform_service.process_paid_cases()
