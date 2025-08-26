@@ -238,16 +238,14 @@ class Advisor(BaseModel):
 
     def calculate_enhanced_avg_case_size(self, company, start_date, end_date, valid_case_types=None):
         """
-        Calculate enhanced average case size using your CORRECT formula:
-        avg_case_size = (total_paid / residential_cases) - insurance_referred_to_me + insurance_referred_by_me
-        
-        Where:
-        - total_paid / residential_cases = average per residential case
-        - insurance_referred_to_me = COUNT of insurance cases where who_referred contains advisor's name
-        - insurance_referred_by_me = COUNT of other insurance cases by this advisor
+        Calculate enhanced average case size with income_type consideration and improved name matching
         """
         from app.models.paid_case import PaidCase
         from sqlalchemy import and_, or_
+        from collections import defaultdict
+        
+        print(f"\n🔍 DEBUG: Calculating avg case size for {self.full_name} in {company}")
+        print(f"📅 Period: {start_date} to {end_date}")
         
         # Get all paid cases for this advisor in the period
         query = PaidCase.query.filter(
@@ -263,53 +261,163 @@ class Advisor(BaseModel):
         )
         
         all_cases = query.all()
+        # Filter cases for calculation - this filter is for valid case types (usually both residential and insurance)
         if valid_case_types:
-            all_cases = [c for c in all_cases if c.case_type in valid_case_types]
-        
-        # Calculate components
-        total_paid = sum(case.value for case in all_cases)
-        
-        # Count residential cases
-        residential_cases = len([case for case in all_cases 
-                            if 'residential' in case.case_type.lower()])
-        
-        # Count insurance cases referred TO me (where who_referred contains my name)
-        insurance_referred_to_me = 0
-        insurance_referred_by_me = 0
-        
-        for case in all_cases:
-            if 'insurance' in case.case_type.lower():
-                if (case.who_referred and 
-                    self._name_matches_referral(case.who_referred)):
-                    insurance_referred_to_me += 1
-                else:
-                    insurance_referred_by_me += 1
-        
-        # Apply YOUR CORRECT formula:
-        # avg_case_size = (total_paid / residential_cases) - insurance_referred_to_me + insurance_referred_by_me
-        
-        if residential_cases > 0:
-            avg_residential = total_paid / residential_cases
-            avg_case_size = avg_residential - insurance_referred_to_me + insurance_referred_by_me
+            filtered_cases = [c for c in all_cases if c.case_type in valid_case_types]
         else:
-            avg_case_size = 0 - insurance_referred_to_me + insurance_referred_by_me
+            filtered_cases = all_cases
+        
+        
+        # Get ONLY residential cases for total_paid calculation and unique counting
+        residential_cases = [case for case in filtered_cases 
+                            if 'residential' in case.case_type.lower()]
+        
+        for case in residential_cases:
+            income_info = f" (Income: {getattr(case, 'income_type', 'N/A')})" if hasattr(case, 'income_type') else ""
+        
+        # Calculate total paid (sum of ONLY RESIDENTIAL case values)
+        total_paid = sum(case.value for case in residential_cases)
+        
+        # ENHANCED: Count unique mortgage applications with income_type consideration
+        unique_mortgage_applications = self._count_unique_mortgage_applications_with_income_type(residential_cases)
+        
+        # Calculate insurance referral values with enhanced name matching
+        insurance_referred_to_me = 0  # Insurance VALUE where who_referred contains my name
+        insurance_advisor_referred_to_me = 0  # Insurance VALUE where who_referred contains another advisor's name
+        
+        # Get all advisor names from company config for comparison
+        from app.config import config_manager
+        company_config = config_manager.get_company_config(company)
+        all_advisor_names = company_config.advisor_names if company_config else []
+        
+        # Use ALL cases for insurance referrals, not just filtered ones
+        insurance_cases = [case for case in query.all() if 'insurance' in case.case_type.lower()]
+        
+        for case in insurance_cases:
+            # ENHANCED: Use improved name matching that handles Mike vs Michael
+            if case.who_referred:
+                if self._enhanced_name_matches_referral(case.who_referred, company_config):
+                    insurance_referred_to_me += case.value
+                    print(f"     ✅ REFERRED TO ME: +£{case.value}")
+                elif self._is_other_advisor_referral_enhanced(case.who_referred, all_advisor_names, company_config):
+                    insurance_advisor_referred_to_me += case.value
+                    print(f"     ⚠️ OTHER ADVISOR REFERRED TO ME: +£{case.value}")
+                else:
+                    print(f"     ❓ Has referral but no match: '{case.who_referred}'")
+            else:
+                print(f"     ❌ No referral (who_referred: {case.who_referred})")
+        
+        
+        # Apply the CORRECT formula:
+        # avg_case_size = (total_paid / unique_mortgage_applications) + insurance_referred_to_me - insurance_advisor_referred_to_me
+        
+        if unique_mortgage_applications > 0:
+            avg_per_mortgage = total_paid / unique_mortgage_applications
+            avg_case_size = avg_per_mortgage + insurance_referred_to_me - insurance_advisor_referred_to_me
+        else:
+            avg_per_mortgage = 0
+            avg_case_size = 0 + insurance_referred_to_me - insurance_advisor_referred_to_me
+        
         
         return {
             'avg_case_size': round(avg_case_size, 2),
             'total_paid': total_paid,
-            'residential_cases': residential_cases,
-            'avg_per_residential': round(avg_residential, 2) if residential_cases > 0 else 0,
+            'unique_mortgage_applications': unique_mortgage_applications,
+            'avg_per_mortgage': round(avg_per_mortgage, 2) if unique_mortgage_applications > 0 else 0,
             'insurance_referred_to_me': insurance_referred_to_me,
-            'insurance_referred_by_me': insurance_referred_by_me,
-            'total_cases': len(all_cases),
+            'insurance_advisor_referred_to_me': insurance_advisor_referred_to_me,
+            'total_cases': len(query.all()),  # All cases
+            'filtered_cases_count': len(filtered_cases),  # Valid case types
+            'residential_cases_count': len(residential_cases),  # Only residential
             'formula_breakdown': {
-                'step1_avg_residential': round(avg_residential, 2) if residential_cases > 0 else 0,
-                'step2_minus_referred_to_me': insurance_referred_to_me,
-                'step3_plus_referred_by_me': insurance_referred_by_me,
+                'step1_avg_per_mortgage': round(avg_per_mortgage, 2) if unique_mortgage_applications > 0 else 0,
+                'step2_plus_insurance_referred_to_me': insurance_referred_to_me,
+                'step3_minus_insurance_advisor_referred_to_me': insurance_advisor_referred_to_me,
                 'final_result': round(avg_case_size, 2)
             }
         }
 
+    def _is_other_advisor_referral(self, who_referred_text, all_advisor_names):
+        """
+        Check if who_referred text contains another advisor's name (not this advisor's name)
+        """
+        if not who_referred_text:
+            return False
+        
+        who_referred_lower = who_referred_text.lower()
+        
+        # Check if it contains this advisor's name first - if so, it's not another advisor
+        if self._name_matches_referral(who_referred_text):
+            return False
+        
+        # Check if it contains any other advisor's name
+        for advisor_name in all_advisor_names:
+            if advisor_name.lower() != self.full_name.lower():  # Skip current advisor
+                advisor_name_lower = advisor_name.lower()
+                
+                # Check full name match
+                if advisor_name_lower in who_referred_lower:
+                    return True
+                
+                # Check first name match (if longer than 2 chars)
+                first_name = advisor_name_lower.split()[0] if advisor_name_lower else ""
+                if first_name and len(first_name) > 2 and first_name in who_referred_lower:
+                    return True
+                
+                # Check last name match (if longer than 2 chars)
+                last_name = advisor_name_lower.split()[-1] if advisor_name_lower and len(advisor_name_lower.split()) > 1 else ""
+                if last_name and len(last_name) > 2 and last_name in who_referred_lower:
+                    return True
+        
+        return False
+    def _count_unique_mortgage_applications(self, residential_cases):
+        """
+        DEBUG version that prints detailed information about unique counting
+        """
+        from collections import defaultdict
+                
+        # Group cases by customer name
+        customer_cases = defaultdict(list)
+        for case in residential_cases:
+            if case.customer_name:
+                # Normalize customer name (remove extra spaces, make lowercase for comparison)
+                normalized_name = ' '.join(case.customer_name.strip().split()).lower()
+                customer_cases[normalized_name].append(case.value)
+                
+        unique_count = 0
+        
+        for customer_name, values in customer_cases.items():
+            
+            if len(values) == 1:
+                # Single case = 1 unique application
+                unique_count += 1
+            else:
+                # Multiple cases - check for the special pattern
+                
+                # Check if we have the specific pattern: positive, negative, different positive
+                has_special_pattern = False
+                
+                if len(values) >= 3:
+                    # Look for value/negative value pairs
+                    positive_values = [v for v in values if v > 0]
+                    negative_values = [v for v in values if v < 0]
+                    
+
+                    
+                    # Check if any positive value has a corresponding negative
+                    for pos_val in positive_values:
+                        if -pos_val in negative_values:
+                            has_special_pattern = True
+                            break
+                
+                if has_special_pattern:
+                    unique_count += 1
+                else:
+                    # No special pattern found - count as separate applications
+                    unique_applications = len(set(abs(v) for v in values if v != 0))
+                    unique_count += unique_applications
+        
+        return unique_count
 
     def _name_matches_referral(self, who_referred_text):
         """Check if who_referred text contains this advisor's name"""
@@ -378,3 +486,220 @@ class Advisor(BaseModel):
             'avg_case_size': enhanced_avg_case_size['avg_case_size'],
             'avg_case_size_breakdown': enhanced_avg_case_size
         }
+
+    def _get_normalized_referrer_name(self, who_referred_text):
+        """
+        Get the normalized/full name of the referrer for debug purposes
+        """
+        if not who_referred_text:
+            return "Unknown"
+        
+        who_referred_lower = who_referred_text.lower().strip()
+        
+        # Get company config for name mappings
+        from app.config import config_manager
+        company_config = config_manager.get_company_config('windsor')
+        
+        # Try to normalize using company mappings
+        if company_config and hasattr(company_config, 'name_mappings'):
+            for mapping_key, full_name in company_config.name_mappings.items():
+                if mapping_key in who_referred_lower or who_referred_lower in mapping_key:
+                    return full_name
+        
+        # If no mapping found, return original
+        return who_referred_text
+    
+
+    def _count_unique_mortgage_applications_debug(self, residential_cases):
+        """
+        DEBUG version that prints detailed information about unique counting
+        """
+        from collections import defaultdict
+        
+        
+        # Group cases by customer name
+        customer_cases = defaultdict(list)
+        for case in residential_cases:
+            if case.customer_name:
+                # Normalize customer name (remove extra spaces, make lowercase for comparison)
+                normalized_name = ' '.join(case.customer_name.strip().split()).lower()
+                customer_cases[normalized_name].append(case.value)
+        
+        
+        unique_count = 0
+        
+        for customer_name, values in customer_cases.items():
+            
+            if len(values) == 1:
+                # Single case = 1 unique application
+                unique_count += 1
+            else:
+                # Multiple cases - check for the special pattern
+                
+                # Check if we have the specific pattern: positive, negative, different positive
+                has_special_pattern = False
+                
+                if len(values) >= 3:
+                    # Look for value/negative value pairs
+                    positive_values = [v for v in values if v > 0]
+                    negative_values = [v for v in values if v < 0]
+                    
+                    # Check if any positive value has a corresponding negative
+                    for pos_val in positive_values:
+                        if -pos_val in negative_values:
+                            has_special_pattern = True
+                            break
+                
+                if has_special_pattern:
+                    unique_count += 1
+                else:
+                    # No special pattern found - count as separate applications
+                    unique_applications = len(set(abs(v) for v in values if v != 0))
+                    unique_count += unique_applications
+        
+        return unique_count
+
+    def _count_unique_mortgage_applications_with_income_type(self, residential_cases):
+        """
+        Count unique mortgage applications: Residential cases with 'Lender Commission' income type
+        """
+        from collections import defaultdict
+        
+        print(f"Criteria: case_type='Residential' AND income_type='Lender Commission'")
+        
+        # Filter for BOTH Residential case type AND Lender Commission income type
+        mortgage_cases = []
+        for case in residential_cases:
+            income_type = getattr(case, 'income_type', '')
+            
+            # Must be both Residential AND Lender Commission
+            if income_type == 'Lender Commission':
+                mortgage_cases.append(case)
+            else:
+                print(f"   ❌ Excluding: {case.customer_name} (Case: {case.case_type}, Income: {income_type or 'NULL'})")
+        
+        
+        if len(mortgage_cases) == 0:
+            return 0
+        
+        # Group cases by customer name
+        customer_cases = defaultdict(list)
+        for case in mortgage_cases:
+            if case.customer_name:
+                # Normalize customer name (remove extra spaces, make lowercase for comparison)
+                normalized_name = ' '.join(case.customer_name.strip().split()).lower()
+                customer_cases[normalized_name].append(case.value)
+        
+        
+        unique_count = 0
+        
+        for customer_name, values in customer_cases.items():
+
+            
+            if len(values) == 1:
+                # Single case = 1 unique application
+                unique_count += 1
+            else:
+                # Multiple cases - check for the special pattern
+                
+                # Check if we have the specific pattern: positive, negative, different positive
+                has_special_pattern = False
+                
+                if len(values) >= 3:
+                    # Look for value/negative value pairs
+                    positive_values = [v for v in values if v > 0]
+                    negative_values = [v for v in values if v < 0]
+                    
+                    # Check if any positive value has a corresponding negative
+                    for pos_val in positive_values:
+                        if -pos_val in negative_values:
+                            has_special_pattern = True
+                            break
+                
+                if has_special_pattern:
+                    unique_count += 1
+                else:
+                    # No special pattern found - count as separate applications
+                    unique_applications = len(set(abs(v) for v in values if v != 0))
+                    unique_count += unique_applications
+        
+        return unique_count
+
+
+    def _enhanced_name_matches_referral(self, who_referred_text, company_config):
+        """
+        ENHANCED: Check if who_referred text matches this advisor using company name mappings
+        This fixes the Mike vs Michael issue
+        """
+        if not who_referred_text or not self.full_name:
+            return False
+        
+        # First normalize the referral text using company mappings
+        normalized_referrer = company_config.normalize_advisor_name(who_referred_text) if company_config else who_referred_text
+        # Check if normalized referrer matches this advisor's name
+        if normalized_referrer and normalized_referrer.lower() == self.full_name.lower():
+            return True
+        
+        # Fallback to original logic for backward compatibility
+        who_referred_lower = who_referred_text.lower()
+        advisor_name_lower = self.full_name.lower()
+        
+        # Direct full name match
+        if advisor_name_lower in who_referred_lower:
+            return True
+        
+        # Check first name match
+        first_name = advisor_name_lower.split()[0] if advisor_name_lower else ""
+        if first_name and len(first_name) > 2 and first_name in who_referred_lower:
+            return True
+        
+        # Check last name match
+        last_name = advisor_name_lower.split()[-1] if advisor_name_lower and len(advisor_name_lower.split()) > 1 else ""
+        if last_name and len(last_name) > 2 and last_name in who_referred_lower:
+            return True
+        
+        return False
+
+    def _is_other_advisor_referral_enhanced(self, who_referred_text, all_advisor_names, company_config):
+        """
+        ENHANCED: Check if who_referred text contains another advisor's name using company mappings
+        """
+        if not who_referred_text:
+            return False
+        
+        # First normalize the referral text using company mappings
+        normalized_referrer = company_config.normalize_advisor_name(who_referred_text) if company_config else None
+        
+        # Check if normalized referrer is another advisor (not this advisor)
+        if normalized_referrer and normalized_referrer.lower() != self.full_name.lower():
+            for advisor_name in all_advisor_names:
+                if advisor_name.lower() == normalized_referrer.lower():
+                    return True
+        
+        # Fallback to original logic
+        who_referred_lower = who_referred_text.lower()
+        
+        # Check if it contains this advisor's name first - if so, it's not another advisor
+        if self._enhanced_name_matches_referral(who_referred_text, company_config):
+            return False
+        
+        # Check if it contains any other advisor's name
+        for advisor_name in all_advisor_names:
+            if advisor_name.lower() != self.full_name.lower():  # Skip current advisor
+                advisor_name_lower = advisor_name.lower()
+                
+                # Check full name match
+                if advisor_name_lower in who_referred_lower:
+                    return True
+                
+                # Check first name match (if longer than 2 chars)
+                first_name = advisor_name_lower.split()[0] if advisor_name_lower else ""
+                if first_name and len(first_name) > 2 and first_name in who_referred_lower:
+                    return True
+                
+                # Check last name match (if longer than 2 chars)  
+                last_name = advisor_name_lower.split()[-1] if advisor_name_lower and len(advisor_name_lower.split()) > 1 else ""
+                if last_name and len(last_name) > 2 and last_name in who_referred_lower:
+                    return True
+        
+        return False

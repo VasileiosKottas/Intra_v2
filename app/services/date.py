@@ -2,7 +2,7 @@
 Date service for date operations and period calculations
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import Tuple, Optional
 import calendar
 
@@ -18,24 +18,36 @@ class DateService:
             return None
     
     @staticmethod
-    def resolve_period_dates(period: str, start_str: str = None, end_str: str = None) -> Tuple[datetime.date, datetime.date]:
-        """Resolve period dates with support for custom range"""
+    def resolve_period_dates(period: str, start_str: str = None, end_str: str = None):
         today = datetime.now().date()
-        
+
         if period == 'custom' and start_str and end_str:
             start = DateService.parse_date(start_str)
             end = DateService.parse_date(end_str)
             if start and end and start <= end:
                 return start, end
-            # fallback to month if invalid custom range
-        
-        if period == 'quarter': 
-            return today - timedelta(days=90), today
+
+        if period == 'quarter':
+            # previous calendar quarter (full months)
+            curr_q = (today.month - 1) // 3             # 0..3
+            if curr_q == 0:
+                year = today.year - 1
+                start_month = 10  # Q4 prev year
+            else:
+                year = today.year
+                start_month = 3 * (curr_q - 1) + 1      # 1,4,7,10
+            end_month = start_month + 2
+            start = date(year, start_month, 1)
+            end_day = calendar.monthrange(year, end_month)[1]
+            end = date(year, end_month, end_day)
+            return start, end
+
         elif period == 'year':
             start = today.replace(month=1, day=1)
             return start, today
-        else:  # month to date (default)
-            return today.replace(day=1), today
+
+        # month-to-date default
+        return today.replace(day=1), today
     
     @staticmethod
     def get_current_year_dates() -> Tuple[datetime.date, datetime.date]:

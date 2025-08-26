@@ -1,5 +1,5 @@
 """
-JotForm API integration service
+Enhanced JotForm API integration service with income_type field and improved name matching
 """
 
 import requests
@@ -30,7 +30,7 @@ class JotFormService:
             'submission_date': '6',
             'customer_name': '7',
             'expected_proc': '12',
-            'expected_fee': '13'
+            'expected_fee': '13',
         }
         
         self.paid_field_map = {
@@ -39,8 +39,10 @@ class JotFormService:
             'case_type': '8',
             'value': '12',
             'customer_name': '4',
-            'date_paid': '13'
+            'date_paid': '13',
+            'income_type': '6'  # NEW: Add income_type to paid cases too
         }
+    
     def _make_request(self, endpoint: str, params: Optional[Dict] = None) -> Optional[Dict]:
         """Make a request to the JotForm API"""
         url = f"{self.base_url}{endpoint}"
@@ -147,6 +149,7 @@ class JotFormService:
                 advisor_name = self.config.normalize_advisor_name(data.get("advisor_name", ""))
                 business_type = str(data.get("business_type", ""))
                 customer_name = str(data.get("customer_name", "") or "Unknown Customer")
+                income_type = str(data.get("income_type", ""))  # NEW: Get income type
                 
                 try:
                     proc_raw = data.get("expected_proc", "")
@@ -182,6 +185,7 @@ class JotFormService:
                         'expected_proc': expected_proc,
                         'expected_fee': expected_fee,
                         'referral_to': referral_to,
+                        'income_type': income_type,  # NEW: Include income type
                         'company': self.company,
                         'jotform_id': submission.get("submission_id")
                     })
@@ -192,9 +196,9 @@ class JotFormService:
         
         print(f" Successfully processed {len(processed_submissions)} valid submissions for {self.company}")
         return processed_submissions
-    
+
     def process_paid_cases(self) -> List[Dict]:
-        """Process paid cases with company-specific filtering"""
+        """Process paid cases with company-specific filtering and enhanced name matching"""
         print(f" Processing paid cases from JotForm for {self.company}...")
         
         paid_data = self.get_form_submissions_with_mapping(
@@ -207,6 +211,7 @@ class JotFormService:
             return []
         
         processed_cases = []
+        referral_debug_count = 0
 
         for case in paid_data:
             try:
@@ -215,6 +220,11 @@ class JotFormService:
                 advisor_name = self.config.normalize_advisor_name(data.get("advisor_name", ""))
                 case_type = str(data.get("case_type", ""))
                 customer_name = str(data.get("customer_name", "") or "Unknown Customer")
+                income_type = str(data.get("income_type", ""))  # NEW: Get income type
+                
+                # ENHANCED: Extract who_referred field with improved normalization
+                who_referred_raw = data.get("who_referred", "")
+                who_referred = self._normalize_referrer_name(who_referred_raw)
                 
                 try:
                     value_raw = data.get("value", "")
@@ -231,17 +241,19 @@ class JotFormService:
                 if not date_paid:
                     date_paid = self._parse_date(case.get("created_at", ""))
                 
-                # Company-specific filtering - FIXED: Remove the value > 0 condition
-                # This allows negative values (adjustments, refunds, etc.) to be included
+                # Company-specific filtering
                 if (advisor_name and 
                     self.config.is_valid_paid_case_type(case_type) and 
-                    value != 0):  # Only exclude zero values, allow negative values
+                    value != 0):
+                
                     processed_cases.append({
                         'advisor_name': advisor_name,
                         'case_type': case_type,
                         'value': value,
                         'customer_name': customer_name,
                         'date_paid': date_paid or datetime.now().date(),
+                        'who_referred': who_referred,
+                        'income_type': income_type,  # NEW: Include income type
                         'company': self.company,
                         'jotform_id': case.get("submission_id")
                     })
@@ -251,3 +263,27 @@ class JotFormService:
         
         print(f" Successfully processed {len(processed_cases)} valid paid cases for {self.company}")
         return processed_cases
+    
+    def _normalize_referrer_name(self, who_referred_raw):
+        """
+        ENHANCED: Normalize the referrer name using company mappings
+        This fixes the Mike vs Michael issue
+        """
+        if who_referred_raw is None:
+            return None
+        
+        who_referred_clean = str(who_referred_raw).strip()
+        
+        if not who_referred_clean or who_referred_clean.lower() in ["no answer", "none", ""]:
+            return None
+        
+        # Use company config to normalize the name
+        normalized_name = self.config.normalize_advisor_name(who_referred_clean)
+        
+        # If normalization returns a valid advisor name, use it
+        if normalized_name and normalized_name in self.config.advisor_names:
+            print(f"   Normalized '{who_referred_raw}' → '{normalized_name}'")
+            return normalized_name
+        
+        # Otherwise return the original clean value
+        return who_referred_clean

@@ -341,7 +341,7 @@
                 <div class="metric-detail" id="applications-breakdown">
                     Loading applications...
                 </div>
-                <div class="metric-detail">Average per Application: £<span id="avg-per-application">0.00</span></div>
+                <!-- <div class="metric-detail">Average per Application: £<span id="avg-per-application">0.00</span></div> -->
             </div>
 
             <div class="metric-card referrals">
@@ -407,12 +407,11 @@
                                 <th>Team Member</th>
                                 <th>Total Submitted</th>
                                 <th>Total Paid</th>
-                                <th>Avg Case Size</th>
                             </tr>
                         </thead>
                         <tbody id="leaderboard-body">
                             <tr>
-                                <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                                <td colspan="4" style="text-align: center; padding: 2rem; color: #7f8c8d;">
                                     <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
                                     <p>Loading team data...</p>
                                 </td>
@@ -788,7 +787,7 @@
                 
                 const totalApps = Object.values(data.applications).reduce((sum, count) => sum + count, 0);
                 document.getElementById('total-applications').textContent = totalApps;
-                document.getElementById('avg-per-application').textContent = totalApps > 0 ? (data.combined_total / totalApps).toFixed(2) : '0.00';
+                // document.getElementById('avg-per-application').textContent = totalApps > 0 ? (data.combined_total / totalApps).toFixed(2) : '0.00';
 
                 document.getElementById('referrals-made').textContent = data.referrals_made;
                 document.getElementById('referrals-made-count').textContent = data.referrals_made;
@@ -843,140 +842,138 @@
                 console.error('Error loading user goal data:', error);
             }
         }
-
+        
         async function loadTeamData() {
-            try {
-                let url = `/api/advisor-team-data/${advisorId}?period=${currentPeriod}`;
-                if (currentPeriod === 'custom' && customStartDate && customEndDate) {
-                    url += `&start=${customStartDate}&end=${customEndDate}`;
-                }
-                
-                const response = await fetch(url, { cache: 'no-store' });
-                const data = await response.json();
-                
-                const safeSetTextContent = (id, value) => {
-                    const element = document.getElementById(id);
-                    if (element) {
-                        element.textContent = value;
-                    }
-                };
-                
-                const safeSetStyle = (id, property, value) => {
-                    const element = document.getElementById(id);
-                    if (element) {
-                        element.style[property] = value;
-                    }
-                };
-                
-                if (data.no_team) {
-                    safeSetTextContent('team-progress', '0%');
-                    safeSetStyle('team-progress-bar', 'width', '0%');
-                    safeSetTextContent('team-goal', '0.00');
-                    safeSetTextContent('team-submitted', '0.00');
-                    safeSetTextContent('team-remaining', '0.00');
-                    safeSetTextContent('days-left', '0');
-
-                    const leaderboardBody = document.getElementById('leaderboard-body');
-                    if (leaderboardBody) {
-                        leaderboardBody.innerHTML = `
-                            <tr>
-                                <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
-                                    <div style="font-size: 3rem; margin-bottom: 1rem;">👥</div>
-                                    <p>This advisor is not assigned to a team.</p>
-                                </td>
-                            </tr>
-                        `;
-                    }
-
-                    const leaderboardTitle = document.querySelector('.leaderboard-title');
-                    if (leaderboardTitle) {
-                        leaderboardTitle.textContent = 'No Team Assigned';
-                    }
-                    
-                    const teamTargetTitle = document.getElementById('team-target-title');
-                    if (teamTargetTitle) {
-                        teamTargetTitle.textContent = 'No Team Target';
-                    }
-                    return;
-                }
-
-                safeSetTextContent('team-progress', `${Math.round(data.team_progress)}%`);
-                safeSetStyle('team-progress-bar', 'width', `${Math.min(data.team_progress, 100)}%`);
-                safeSetTextContent('team-goal', data.team_monthly_goal.toFixed(2));
-                safeSetTextContent('team-submitted', data.team_monthly_total.toFixed(2));
-                safeSetTextContent('team-remaining', (data.team_monthly_goal - data.team_monthly_total).toFixed(2));
-                safeSetTextContent('days-left', `${data.days_left}`);
-
-                const leaderboardBody = document.getElementById('leaderboard-body');
-                if (leaderboardBody) {
-                    leaderboardBody.innerHTML = '';
-
-                    if (data.team_members.length === 0) {
-                        leaderboardBody.innerHTML = `
-                            <tr>
-                                <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
-                                    <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
-                                    <p>No team members found.</p>
-                                </td>
-                            </tr>
-                        `;
-                    } else {
-                        // Sort team members by total submitted (descending)
-                        data.team_members.sort((a, b) => b.total_submitted - a.total_submitted);
-                        
-                        data.team_members.forEach((member, index) => {
-                            const row = document.createElement('tr');
-                            if (member.name === '{{ advisor.full_name }}') {
-                                row.style.background = 'linear-gradient(135deg, #fff9e6 0%, #fff3d6 100%)';
-                                row.style.borderLeft = '4px solid #f39c12';
-                            }
-
-                            const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : 'rank-other';
-                            
-                            row.innerHTML = `
-                                <td><span class="rank-badge ${rankClass}">#${index + 1}</span></td>
-                                <td>
-                                    <strong>${member.name}</strong>
-                                    ${member.name === '{{ advisor.full_name }}' ? '<span class="status-badge status-submitted" style="margin-left: 0.5rem;">This User</span>' : ''}
-                                </td>
-                                <td><strong>£${member.total_submitted.toFixed(2)}</strong></td>
-                                <td style="color: #2ecc71;"><strong>£${member.total_paid.toFixed(2)}</strong></td>
-                                <td>£${member.avg_case_size.toFixed(2)}</td>
-                            `;
-                            leaderboardBody.appendChild(row);
-                        });
-                    }
-                }
-
-                const leaderboardTitle = document.querySelector('.leaderboard-title');
-                if (leaderboardTitle) {
-                    leaderboardTitle.textContent = `🏆 ${data.team_name} Leaderboard (${data.team_members.length} members)`;
-                }
-                
-                const teamTargetTitle = document.getElementById('team-target-title');
-                if (teamTargetTitle) {
-                    teamTargetTitle.textContent = `🎯 ${data.team_name} Target (Current Month)`;
-                }
-
-            } catch (error) {
-                console.error('Error loading team data:', error);
-                const leaderboardTitle = document.querySelector('.leaderboard-title');
-                if (leaderboardTitle) {
-                    leaderboardTitle.textContent = 'Team Data Unavailable';
-                }
-                
-                const leaderboardBody = document.getElementById('leaderboard-body');
-                if (leaderboardBody) {
-                    leaderboardBody.innerHTML = `
-                        <tr>
-                            <td colspan="5" style="text-align: center; padding: 2rem; color: #e74c3c;">
-                                <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
-                                <p>Error loading team data. Please try again later.</p>
-                            </td>
-                        </tr>
-                    `;
-                }
+        try {
+            let url = `/api/advisor-team-data/${advisorId}?period=${currentPeriod}`;
+            if (currentPeriod === 'custom' && customStartDate && customEndDate) {
+            url += `&start=${customStartDate}&end=${customEndDate}`;
             }
+
+            const response = await fetch(url, { cache: 'no-store' });
+            const data = await response.json();
+
+            // Current number of table columns (now 4)
+            const COLS = document.querySelectorAll('.leaderboard-table thead th').length || 4;
+
+            const safeSetTextContent = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+            };
+            const safeSetStyle = (id, prop, value) => {
+            const el = document.getElementById(id);
+            if (el) el.style[prop] = value;
+            };
+
+            if (data.no_team) {
+            safeSetTextContent('team-progress', '0%');
+            safeSetStyle('team-progress-bar', 'width', '0%');
+            safeSetTextContent('team-goal', '0.00');
+            safeSetTextContent('team-submitted', '0.00');
+            safeSetTextContent('team-remaining', '0.00');
+            safeSetTextContent('days-left', '0');
+
+            const leaderboardBody = document.getElementById('leaderboard-body');
+            if (leaderboardBody) {
+                leaderboardBody.innerHTML = `
+                <tr>
+                    <td colspan="${COLS}" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">👥</div>
+                    <p>This advisor is not assigned to a team.</p>
+                    </td>
+                </tr>
+                `;
+            }
+
+            const leaderboardTitle = document.querySelector('.leaderboard-title');
+            if (leaderboardTitle) leaderboardTitle.textContent = 'No Team Assigned';
+
+            const teamTargetTitle = document.getElementById('team-target-title');
+            if (teamTargetTitle) teamTargetTitle.textContent = 'No Team Target';
+            return;
+            }
+
+            // Team target widgets
+            safeSetTextContent('team-progress', `${Math.round(data.team_progress)}%`);
+            safeSetStyle('team-progress-bar', 'width', `${Math.min(data.team_progress, 100)}%`);
+            safeSetTextContent('team-goal', data.team_monthly_goal.toFixed(2));
+            safeSetTextContent('team-submitted', data.team_monthly_total.toFixed(2));
+            safeSetTextContent('team-remaining', (data.team_monthly_goal - data.team_monthly_total).toFixed(2));
+            safeSetTextContent('days-left', `${data.days_left}`);
+
+            // Leaderboard
+            const leaderboardBody = document.getElementById('leaderboard-body');
+            if (leaderboardBody) {
+            leaderboardBody.innerHTML = '';
+
+            if (!Array.isArray(data.team_members) || data.team_members.length === 0) {
+                leaderboardBody.innerHTML = `
+                <tr>
+                    <td colspan="${COLS}" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+                    <p>No team members found.</p>
+                    </td>
+                </tr>
+                `;
+            } else {
+                data.team_members.sort((a, b) => b.total_submitted - a.total_submitted);
+
+                data.team_members.forEach((member, index) => {
+                const row = document.createElement('tr');
+                if (member.name === '{{ advisor.full_name }}') {
+                    row.style.background = 'linear-gradient(135deg, #fff9e6 0%, #fff3d6 100%)';
+                    row.style.borderLeft = '4px solid #f39c12';
+                }
+
+                const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : 'rank-other';
+
+                // NOTE: No Avg Case Size column here
+                row.innerHTML = `
+                    <td><span class="rank-badge ${rankClass}">#${index + 1}</span></td>
+                    <td>
+                    <strong>${member.name}</strong>
+                    ${member.name === '{{ advisor.full_name }}'
+                        ? '<span class="status-badge status-submitted" style="margin-left: 0.5rem;">This User</span>'
+                        : ''}
+                    </td>
+                    <td><strong>£${(member.total_submitted ?? 0).toFixed(2)}</strong></td>
+                    <td style="color: #2ecc71;"><strong>£${(member.total_paid ?? 0).toFixed(2)}</strong></td>
+                `;
+                leaderboardBody.appendChild(row);
+                });
+            }
+            }
+
+            const leaderboardTitle = document.querySelector('.leaderboard-title');
+            if (leaderboardTitle) {
+            leaderboardTitle.textContent =
+                `🏆 ${data.team_name} Leaderboard (${data.team_members.length} members)`;
+            }
+
+            const teamTargetTitle = document.getElementById('team-target-title');
+            if (teamTargetTitle) {
+            teamTargetTitle.textContent = `🎯 ${data.team_name} Target (Current Month)`;
+            }
+
+        } catch (error) {
+            console.error('Error loading team data:', error);
+
+            const leaderboardTitle = document.querySelector('.leaderboard-title');
+            if (leaderboardTitle) leaderboardTitle.textContent = 'Team Data Unavailable';
+
+            const leaderboardBody = document.getElementById('leaderboard-body');
+            if (leaderboardBody) {
+            const COLS = document.querySelectorAll('.leaderboard-table thead th').length || 4;
+            leaderboardBody.innerHTML = `
+                <tr>
+                <td colspan="${COLS}" style="text-align: center; padding: 2rem; color: #e74c3c;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
+                    <p>Error loading team data. Please try again later.</p>
+                </td>
+                </tr>
+            `;
+            }
+        }
         }
 
         async function loadUserCases() {

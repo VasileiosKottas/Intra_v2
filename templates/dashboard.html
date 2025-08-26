@@ -327,7 +327,7 @@
                 <div class="metric-detail" id="applications-breakdown">
                     Loading applications...
                 </div>
-                <div class="metric-detail">Your Average per Application: £<span id="avg-per-application">0.00</span></div>
+                <div class="metric-detail"><span id="avg-per-application"></span></div>
             </div>
 
             <div class="metric-card referrals">
@@ -400,12 +400,13 @@
                                 <th>Team Member</th>
                                 <th>Total Submitted</th>
                                 <th>Total Paid</th>
-                                <th>Avg Case Size</th>
+                                <!-- Removed Avg Case Size -->
                             </tr>
                         </thead>
                         <tbody id="leaderboard-body">
                             <tr>
-                                <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                                <!-- Now only 4 columns -->
+                                <td colspan="4" style="text-align: center; padding: 2rem; color: #7f8c8d;">
                                     <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
                                     <p>Loading team data...</p>
                                 </td>
@@ -474,7 +475,7 @@
 
                     <!-- User Yearly Goal -->
                     <div class="user-yearly-goal-part">
-                        <h4 style="color: var(--secondary-color); font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem;">👤 Your Yearly Goal Progress</h4>
+                        <h4 style="color: var(--secondary-color); font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem;">👤 Your Yearly Target Progress</h4>
                         <div class="goal-progress" style="margin-bottom:1.2rem; display:flex; align-items:center; gap:10px;">
                             <div class="progress-bar" style="flex:1;">
                                 <div class="progress-fill" id="user-yearly-progress-bar" style="width:0%"></div>
@@ -960,8 +961,8 @@
                 document.getElementById('payment-progress').style.width = `${Math.min(data.payment_percentage, 100)}%`;
                 const totalApps = Object.values(data.applications).reduce((sum, count) => sum + count, 0);
                 document.getElementById('total-applications').textContent = totalApps;
-                document.getElementById('avg-per-application').textContent = 
-                    data.avg_case_size ? data.avg_case_size.toFixed(2) : '0.00';
+                // document.getElementById('avg-per-application').textContent = 
+                //     data.avg_case_size ? data.avg_case_size.toFixed(2) : '0.00';
 
 
                 document.getElementById('referrals-made').textContent = data.referrals_made;
@@ -1132,35 +1133,27 @@
                 if (currentPeriod === 'custom' && customStartDate && customEndDate) {
                     url += `&start=${customStartDate}&end=${customEndDate}`;
                 }
-                
-                // THIS IS THE KEY FIX: Pass the selected team ID to the API
                 if (currentViewingTeam) {
                     url += `&team_id=${currentViewingTeam}`;
                 }
-                
+
                 const response = await fetch(url, { cache: 'no-store' });
                 const data = await response.json();
-                
-                // Safe element access functions
+
+                // Determine current number of columns from the table header (now 4)
+                const COLS = document.querySelectorAll('.leaderboard-table thead th').length || 4;
+
+                // Safe element helpers
                 const safeSetTextContent = (id, value) => {
-                    const element = document.getElementById(id);
-                    if (element) {
-                        element.textContent = value;
-                    } else {
-                        console.warn(`Element with id '${id}' not found`);
-                    }
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = value;
                 };
-                
-                const safeSetStyle = (id, property, value) => {
-                    const element = document.getElementById(id);
-                    if (element) {
-                        element.style[property] = value;
-                    } else {
-                        console.warn(`Element with id '${id}' not found`);
-                    }
+                const safeSetStyle = (id, prop, value) => {
+                    const el = document.getElementById(id);
+                    if (el) el.style[prop] = value;
                 };
-                
-                // Handle no-team state OR hidden team for non-master users
+
+                // Handle no-team / hidden team
                 if (data.no_team || (data.is_hidden_team && !data.is_master_user)) {
                     safeSetTextContent('team-progress', '0%');
                     safeSetStyle('team-progress-bar', 'width', '0%');
@@ -1172,10 +1165,9 @@
                     const leaderboardBody = document.getElementById('leaderboard-body');
                     if (leaderboardBody) {
                         if (data.is_hidden_team && !data.is_master_user) {
-                            // For hidden teams, show only personal metrics without revealing it's a hidden team
                             leaderboardBody.innerHTML = `
                                 <tr>
-                                    <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                                    <td colspan="${COLS}" style="text-align: center; padding: 2rem; color: #7f8c8d;">
                                         <div style="font-size: 3rem; margin-bottom: 1rem;">👤</div>
                                         <p>You are working independently. Focus on your personal goals.</p>
                                     </td>
@@ -1184,7 +1176,7 @@
                         } else {
                             leaderboardBody.innerHTML = `
                                 <tr>
-                                    <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                                    <td colspan="${COLS}" style="text-align: center; padding: 2rem; color: #7f8c8d;">
                                         <div style="font-size: 3rem; margin-bottom: 1rem;">👥</div>
                                         <p>You are not assigned to a team yet. Contact your administrator to be assigned to a team.</p>
                                     </td>
@@ -1195,37 +1187,32 @@
 
                     const leaderboardTitle = document.querySelector('.leaderboard-title');
                     if (leaderboardTitle) {
-                        if (data.is_hidden_team && !data.is_master_user) {
-                            leaderboardTitle.textContent = 'Personal Performance';
-                        } else {
-                            leaderboardTitle.textContent = 'No Team Assigned';
-                        }
+                        leaderboardTitle.textContent = data.is_hidden_team && !data.is_master_user
+                            ? 'Personal Performance'
+                            : 'No Team Assigned';
                     }
-                    
+
                     const teamTargetTitle = document.getElementById('team-target-title');
                     if (teamTargetTitle) {
-                        if (data.is_hidden_team && !data.is_master_user) {
-                            teamTargetTitle.textContent = '🎯 Personal Goals';
-                        } else {
-                            teamTargetTitle.textContent = 'No Team Target';
-                        }
+                        teamTargetTitle.textContent = (data.is_hidden_team && !data.is_master_user)
+                            ? '🎯 Personal Goals'
+                            : 'No Team Target';
                     }
-                    
-                    // Hide multiple teams elements
+
+                    // Hide multiple teams UI
                     safeHideElement('multiple-teams-indicator');
                     safeHideElement('team-selector');
                     safeHideElement('team-visibility-info');
                     safeHideElement('multiple-teams-footer');
-                    
                     return;
                 }
 
-                // Load user teams if not already loaded (only visible teams)
+                // Load visible teams list if empty
                 if (userTeams.length === 0) {
                     await loadUserTeams();
                 }
 
-                // THIS IS THE MAIN FIX: Update ALL team target elements properly
+                // Team target widgets
                 safeSetTextContent('team-progress', `${Math.round(data.team_progress)}%`);
                 safeSetStyle('team-progress-bar', 'width', `${Math.min(data.team_progress, 100)}%`);
                 safeSetTextContent('team-goal', data.team_monthly_goal.toFixed(2));
@@ -1233,41 +1220,34 @@
                 safeSetTextContent('team-remaining', (data.team_monthly_goal - data.team_monthly_total).toFixed(2));
                 safeSetTextContent('days-left', `${data.days_left}`);
 
-                // Multiple teams indicator (only count visible teams)
+                // Multiple teams indicator
                 const multipleTeamsIndicator = document.getElementById('multiple-teams-indicator');
                 const teamsCountDisplay = document.getElementById('teams-count-display');
-                
                 if (userTeams.length > 1) {
-                    if (multipleTeamsIndicator) {
-                        multipleTeamsIndicator.style.display = 'flex';
-                    }
-                    if (teamsCountDisplay) {
-                        teamsCountDisplay.textContent = `${userTeams.length} teams`;
-                    }
-                } else {
-                    if (multipleTeamsIndicator) {
-                        multipleTeamsIndicator.style.display = 'none';
-                    }
+                    if (multipleTeamsIndicator) multipleTeamsIndicator.style.display = 'flex';
+                    if (teamsCountDisplay) teamsCountDisplay.textContent = `${userTeams.length} teams`;
+                } else if (multipleTeamsIndicator) {
+                    multipleTeamsIndicator.style.display = 'none';
                 }
 
-                // Update leaderboard (team members should already be filtered server-side)
+                // Leaderboard
                 const leaderboardBody = document.getElementById('leaderboard-body');
                 if (leaderboardBody) {
                     leaderboardBody.innerHTML = '';
 
-                    if (data.team_members.length === 0) {
+                    if (!Array.isArray(data.team_members) || data.team_members.length === 0) {
                         leaderboardBody.innerHTML = `
                             <tr>
-                                <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                                <td colspan="${COLS}" style="text-align: center; padding: 2rem; color: #7f8c8d;">
                                     <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
                                     <p>No team members found.</p>
                                 </td>
                             </tr>
                         `;
                     } else {
-                        // Sort team members by total submitted (descending)
+                        // Sort by total submitted (desc)
                         data.team_members.sort((a, b) => b.total_submitted - a.total_submitted);
-                        
+
                         data.team_members.forEach((member, index) => {
                             const row = document.createElement('tr');
                             if (member.name === '{{ user.full_name }}') {
@@ -1276,77 +1256,71 @@
                             }
 
                             const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : 'rank-other';
-                            
+
+                            // IMPORTANT: no Avg Case Size cell
                             row.innerHTML = `
                                 <td><span class="rank-badge ${rankClass}">#${index + 1}</span></td>
                                 <td>
                                     <strong>${member.name}</strong>
-                                    ${member.name === '{{ user.full_name }}' ? '<span class="status-badge status-submitted" style="margin-left: 0.5rem;">You</span>' : ''}
+                                    ${member.name === '{{ user.full_name }}'
+                                        ? '<span class="status-badge status-submitted" style="margin-left: 0.5rem;">You</span>'
+                                        : ''}
                                 </td>
-                                <td><strong>£${member.total_submitted.toFixed(2)}</strong></td>
-                                <td style="color: #2ecc71;"><strong>£${member.total_paid.toFixed(2)}</strong></td>
-                                <td>£${member.avg_case_size.toFixed(2)}</td>
+                                <td><strong>£${(member.total_submitted ?? 0).toFixed(2)}</strong></td>
+                                <td style="color: #2ecc71;"><strong>£${(member.total_paid ?? 0).toFixed(2)}</strong></td>
                             `;
                             leaderboardBody.appendChild(row);
                         });
                     }
                 }
 
-                // THIS IS ALSO IMPORTANT: Update titles with the correct team name
+                // Titles
                 const leaderboardTitle = document.querySelector('.leaderboard-title');
                 if (leaderboardTitle) {
                     let titleText = `🏆 ${data.team_name} Leaderboard (${data.team_members.length} members)`;
-                    
-                    if (userTeams.length > 1) {
-                        titleText += ` - Showing: ${data.team_name}`;
-                    }
-                    
+                    if (userTeams.length > 1) titleText += ` - Showing: ${data.team_name}`;
                     leaderboardTitle.textContent = titleText;
                 }
-                
-                // THIS IS THE KEY FIX FOR TEAM TARGET TITLE
+
                 const teamTargetTitle = document.getElementById('team-target-title');
                 if (teamTargetTitle) {
-                    let targetTitle = `🎯 ${data.team_name} Monthly Goal`;
-                    
-                    if (userTeams.length > 1) {
-                        targetTitle = `🎯 Team Target (${data.team_name})`;
-                    }
-                    
-                    teamTargetTitle.textContent = targetTitle;
+                    teamTargetTitle.textContent = userTeams.length > 1
+                        ? `🎯 Team Target (${data.team_name})`
+                        : `🎯 ${data.team_name} Monthly Goal`;
                 }
 
-                // Update team selector and UI elements (only for visible teams)
+                // Ancillary UI
                 updateTeamSelector();
                 updateTeamInfoBanner();
                 updateMultipleTeamsFooter();
 
             } catch (error) {
                 console.error('Error loading team data:', error);
-                
+
                 const leaderboardTitle = document.querySelector('.leaderboard-title');
-                if (leaderboardTitle) {
-                    leaderboardTitle.textContent = 'Team Data Unavailable';
-                }
-                
+                if (leaderboardTitle) leaderboardTitle.textContent = 'Team Data Unavailable';
+
                 const leaderboardBody = document.getElementById('leaderboard-body');
                 if (leaderboardBody) {
+                    // Use dynamic COLS here too
+                    const COLS = document.querySelectorAll('.leaderboard-table thead th').length || 4;
                     leaderboardBody.innerHTML = `
                         <tr>
-                            <td colspan="5" style="text-align: center; padding: 2rem; color: #e74c3c;">
+                            <td colspan="${COLS}" style="text-align: center; padding: 2rem; color: #e74c3c;">
                                 <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
                                 <p>Error loading team data. Please try again later.</p>
                             </td>
                         </tr>
                     `;
                 }
-                
+
                 // Hide multiple team elements on error
                 safeHideElement('team-selector');
                 safeHideElement('team-visibility-info');
                 safeHideElement('multiple-teams-footer');
             }
         }
+
 
 
         async function loadUserCases() {

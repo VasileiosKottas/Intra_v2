@@ -16,7 +16,9 @@ from app.services.analytics import AnalyticsService
 from app.services.date import DateService
 from app.config.session import SessionManager
 from app.config import config_manager
-from datetime import datetime
+
+import calendar
+from datetime import datetime, date
 
 class APIController(BaseController):
     """Handles API routes"""
@@ -1411,7 +1413,6 @@ class APIController(BaseController):
         return jsonify(debug_data)
 
     def get_performance_boxplot(self):
-        """Get box plot performance data for current user with improved error handling"""
         user = self.get_current_user()
         if not user:
             return jsonify({'periods': [], 'values': [], 'monthly_goals': [], 'current_total': 0, 'monthly_goal': 0})
@@ -1421,7 +1422,15 @@ class APIController(BaseController):
         period = request.args.get('period', 'month')
         start_str = request.args.get('start')
         end_str = request.args.get('end')
-        
+
+        # NEW: force 3 monthly buckets for last quarter
+        if period == 'quarter':
+            from app.services.date import DateService
+            start_date, end_date = DateService.resolve_period_dates(period, start_str, end_str)
+            data = self._quarter_monthly_boxplot(user, current_company, metric_type, start_date, end_date)
+            return jsonify(data)
+
+        # existing path (month, year, custom)
         try:
             analytics_service = AnalyticsService(current_company)
             boxplot_data = analytics_service.get_advisor_performance_boxplot(
@@ -1485,7 +1494,6 @@ class APIController(BaseController):
 
 
     def get_advisor_performance_boxplot(self, advisor_id):
-        """Get box plot performance data for a specific advisor (master only) with improved error handling"""
         advisor = db.session.get(Advisor, advisor_id)
         if not advisor:
             return jsonify({'periods': [], 'values': [], 'monthly_goals': [], 'current_total': 0, 'monthly_goal': 0})
@@ -1495,7 +1503,13 @@ class APIController(BaseController):
         period = request.args.get('period', 'month')
         start_str = request.args.get('start')
         end_str = request.args.get('end')
-        
+
+        if period == 'quarter':
+            from app.services.date import DateService
+            start_date, end_date = DateService.resolve_period_dates(period, start_str, end_str)
+            data = self._quarter_monthly_boxplot(advisor, current_company, metric_type, start_date, end_date)
+            return jsonify(data)
+
         try:
             analytics_service = AnalyticsService(current_company)
             boxplot_data = analytics_service.get_advisor_performance_boxplot(
@@ -1665,3 +1679,42 @@ class APIController(BaseController):
             'is_hidden_from_team': advisor.is_hidden_from_team,
             'is_master': advisor.is_master
         })
+    
+
+    def _quarter_monthly_boxplot(self, actor, current_company, metric_type: str, start_date, end_date):
+        """Build 3 monthly buckets for the previous quarter using actor.calculate_metrics_for_period"""
+        # figure out the three months in [start_date, end_date]
+        months = []
+        m = start_date.month
+        y = start_date.year
+        for i in range(3):
+            mm = m + i
+            yy = y
+            if mm > 12:
+                mm -= 12
+                yy += 1
+            last_day = calendar.monthrange(yy, mm)[1]
+            month_start = date(yy, mm, 1)
+            month_end = date(yy, mm, last_day)
+
+            metrics = actor.calculate_metrics_for_period(
+                current_company, month_start, month_end,
+                config_manager.get_valid_business_types(current_company),
+                config_manager.get_valid_paid_case_types(current_company)
+            )
+            value = float(metrics['total_submitted'] if metric_type == 'submitted' else metrics['total_paid'])
+            months.append((datetime(yy, mm, 1).strftime('%b %Y'), value))
+
+        # goals
+        yearly_goal = actor.get_yearly_goal_for_company(current_company) or 50000.0
+        monthly_goal = yearly_goal / 12.0
+
+        periods = [lbl for (lbl, _) in months]
+        values  = [val for (_, val) in months]
+        return {
+            'periods': periods,
+            'values': values,
+            'monthly_goals': ( [monthly_goal] * len(periods) ) if metric_type == 'submitted' else [],
+            'current_total': sum(values),   # show quarter total
+            'monthly_goal': monthly_goal
+        }

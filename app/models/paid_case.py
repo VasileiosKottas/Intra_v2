@@ -6,7 +6,7 @@ from app.models import db
 from app.models.base import BaseModel
 
 class PaidCase(BaseModel):
-    """Paid case model"""
+    """Paid case model with income_type field"""
     __tablename__ = 'paid_cases'
     
     advisor_name = db.Column(db.String(100), nullable=False)
@@ -17,4 +17,5 @@ class PaidCase(BaseModel):
     date_paid = db.Column(db.Date, nullable=False)
     company = db.Column(db.String(50), default='windsor')
     jotform_id = db.Column(db.String(50), unique=True)
-    who_referred = db.Column(db.String(200), nullable=True)  # NEW: Who referred this case
+    who_referred = db.Column(db.String(200), nullable=True)
+    income_type = db.Column(db.String(100), nullable=True)  # NEW: Income type field
