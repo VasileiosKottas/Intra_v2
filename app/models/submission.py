@@ -19,7 +19,6 @@ class Submission(BaseModel):
     referral_to = db.Column(db.String(100), nullable=True)
     company = db.Column(db.String(50), default='windsor')
     jotform_id = db.Column(db.String(50), unique=True)
-    income_type = db.Column(db.String(100), nullable=True)  # NEW: Income type field
 
     
     @property

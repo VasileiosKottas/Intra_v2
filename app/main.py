@@ -25,20 +25,43 @@ class SalesDashboardApp:
             # db_service.create_sample_data()
             
     def start_background_services(self):
-        """Start background sync services"""
-        # CRITICAL FIX: Pass the Flask app instance to AutoSyncManager
+        """Start hybrid sync services - webhooks + daily backup"""
+        import os
+        
+        # Check if we should disable all sync for development
+        disable_sync = os.getenv('DISABLE_ALL_SYNC', 'false').lower() == 'true'
+        
+        if disable_sync:
+            print("All sync disabled for development. Use manual sync from master dashboard.")
+            return
+        
+        # Initialize sync manager with app context
         self.sync_manager = AutoSyncManager(self.app)
         
-        # Initial sync
-        with self.app.app_context():
-            self.sync_manager.sync_all_companies()
+        # Skip initial sync - webhooks will handle real-time data
+        # Only do initial sync if explicitly requested
+        do_initial_sync = os.getenv('DO_INITIAL_SYNC', 'false').lower() == 'true'
         
-        # Setup and start scheduler
-        self.sync_manager.setup_scheduler()
+        if do_initial_sync:
+            print("Performing initial sync...")
+            with self.app.app_context():
+                self.sync_manager.backup_sync_all_companies()
+        else:
+            print("Skipping initial sync - using webhooks for real-time data")
+        
+        # Setup hybrid scheduler (daily backup + weekly integrity check)
+        self.sync_manager.setup_hybrid_scheduler()
+        
+        # Start scheduler thread
         threading.Thread(
             target=self.sync_manager.run_scheduler, 
             daemon=True
         ).start()
+        
+        print("Hybrid sync system started:")
+        print("  - Real-time data via webhooks")
+        print("  - Daily backup sync at 2:00 AM") 
+        print("  - Weekly integrity checks")
         
     def run(self, debug=True, host='0.0.0.0', port=5000):
         """Run the application"""

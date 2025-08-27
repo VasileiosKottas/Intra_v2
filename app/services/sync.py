@@ -142,6 +142,84 @@ class AutoSyncManager:
     def __init__(self, app=None):
         self.sync_running = False
         self.app = app
+        self.last_full_sync = None
+
+    def setup_hybrid_scheduler(self):
+        """Setup minimal polling as backup to webhooks"""
+        # Daily full sync at 2 AM (low traffic time)
+        schedule.every().day.at("02:00").do(self.backup_sync_all_companies)
+        
+        # Optional: Weekly deeper integrity check
+        schedule.every().sunday.at("01:00").do(self.integrity_check_all_companies)
+        
+        print("Hybrid sync scheduler configured:")
+        print("  - Daily backup sync at 2:00 AM")
+        print("  - Weekly integrity check on Sundays at 1:00 AM")
+        print("  - Primary data delivery via webhooks")
+    
+    
+    def backup_sync_all_companies(self):
+        """Backup sync - only fetches data newer than last webhook"""
+        print("Starting daily backup sync...")
+        
+        for company in config_manager.get_all_companies():
+            self.backup_sync_company(company)
+    
+    def backup_sync_company(self, company: str):
+        """Backup sync for specific company with date filtering"""
+        if self.sync_running:
+            print(f"Sync already running for {company}, skipping backup...")
+            return
+        
+        self.sync_running = True
+        print(f"Daily backup sync for {company} at {datetime.now()}")
+        
+        try:
+            if self.app:
+                with self.app.app_context():
+                    # Use modified sync service that only fetches recent data
+                    sync_service = BackupSyncService(company)
+                    submissions_added, paid_cases_added, success, error = sync_service.perform_backup_sync()
+                    
+                    if success:
+                        if submissions_added > 0 or paid_cases_added > 0:
+                            print(f"Backup sync found missing data for {company}! Added {submissions_added} submissions and {paid_cases_added} paid cases")
+                        else:
+                            print(f"Backup sync confirmed data integrity for {company}")
+                    else:
+                        print(f"Backup sync failed for {company}: {error}")
+            else:
+                print(f"Cannot backup sync {company}: No Flask app context available")
+                
+        except Exception as e:
+            print(f"Backup sync failed for {company}: {e}")
+        finally:
+            self.sync_running = False
+
+    
+    def integrity_check_all_companies(self):
+        """Weekly integrity check - more thorough validation"""
+        print("Starting weekly integrity check...")
+        
+        for company in config_manager.get_all_companies():
+            self.integrity_check_company(company)
+    
+    def integrity_check_company(self, company: str):
+        """Check for data inconsistencies and missing records"""
+        try:
+            if self.app:
+                with self.app.app_context():
+                    from app.services.integrity_check_service import IntegrityCheckService
+                    
+                    integrity_service = IntegrityCheckService(company)
+                    issues_found = integrity_service.run_full_check()
+                    
+                    if issues_found:
+                        print(f"Integrity check found {issues_found} issues for {company}")
+                    else:
+                        print(f"Integrity check passed for {company}")
+        except Exception as e:
+            print(f"Integrity check failed for {company}: {e}")
     def sync_data_automatic(self, company: str = 'windsor'):
         """Automatic sync function for specific company"""
         if self.sync_running:
@@ -195,3 +273,115 @@ class AutoSyncManager:
         while True:
             schedule.run_pending()
             time.sleep(60)  # Check every minute
+
+
+class BackupSyncService(DataSyncService):
+    """Backup sync service that only fetches recent data"""
+    
+    def perform_backup_sync(self) -> Tuple[int, int, bool, str]:
+        """Perform backup sync - only fetch data from last 48 hours"""
+        try:
+            from datetime import timedelta
+            
+            # Only sync last 48 hours to catch any missed webhooks
+            cutoff_date = datetime.now().date() - timedelta(days=2)
+            
+            submissions_added = self.sync_recent_submissions(cutoff_date)
+            paid_cases_added = self.sync_recent_paid_cases(cutoff_date)
+            
+            # Log the backup sync
+            sync_log = SyncLog(
+                submissions_synced=submissions_added,
+                paid_cases_synced=paid_cases_added,
+                status='backup_success',
+                company=self.company
+            )
+            sync_log.save()
+            
+            return submissions_added, paid_cases_added, True, None
+            
+        except Exception as e:
+            # Log the error
+            sync_log = SyncLog(
+                status='backup_error',
+                error_message=str(e),
+                company=self.company
+            )
+            sync_log.save()
+            
+            return 0, 0, False, str(e)
+    
+    def sync_recent_submissions(self, cutoff_date) -> int:
+        """Sync only submissions newer than cutoff date"""
+        submissions = self.jotform_service.process_submissions()
+        submissions_added = 0
+        
+        for submission_data in submissions:
+            try:
+                # Skip if older than cutoff
+                if submission_data['submission_date'] < cutoff_date:
+                    continue
+                
+                existing = Submission.query.filter_by(jotform_id=submission_data['jotform_id']).first()
+                if not existing:
+                    advisor = Advisor.query.filter_by(
+                        full_name=submission_data['advisor_name']
+                    ).first()
+                    
+                    submission = Submission(
+                        advisor_name=submission_data['advisor_name'],
+                        advisor_id=advisor.id if advisor else None,
+                        business_type=submission_data['business_type'],
+                        submission_date=submission_data['submission_date'],
+                        customer_name=submission_data['customer_name'],
+                        expected_proc=submission_data['expected_proc'],
+                        expected_fee=submission_data['expected_fee'],
+                        referral_to=submission_data['referral_to'],
+                        company=self.company,
+                        jotform_id=submission_data['jotform_id']
+                    )
+                    submission.save()
+                    submissions_added += 1
+                    print(f"Backup sync found missing submission: {submission_data['jotform_id']}")
+            except Exception as e:
+                print(f"Error adding submission in backup: {e}")
+                continue
+        
+        return submissions_added
+    
+    def sync_recent_paid_cases(self, cutoff_date) -> int:
+        """Sync only paid cases newer than cutoff date"""
+        paid_cases = self.jotform_service.process_paid_cases()
+        paid_cases_added = 0
+        
+        for case_data in paid_cases:
+            try:
+                # Skip if older than cutoff
+                if case_data['date_paid'] < cutoff_date:
+                    continue
+                
+                existing = PaidCase.query.filter_by(jotform_id=case_data['jotform_id']).first()
+                if not existing:
+                    advisor = Advisor.query.filter_by(
+                        full_name=case_data['advisor_name']
+                    ).first()
+                    
+                    paid_case = PaidCase(
+                        advisor_name=case_data['advisor_name'],
+                        advisor_id=advisor.id if advisor else None,
+                        customer_name=case_data['customer_name'],
+                        case_type=case_data['case_type'],
+                        value=case_data['value'],
+                        date_paid=case_data['date_paid'],
+                        who_referred=case_data.get('who_referred'),
+                        company=self.company,
+                        jotform_id=case_data['jotform_id']
+                    )
+                    paid_case.save()
+                    paid_cases_added += 1
+                    print(f"Backup sync found missing paid case: {case_data['jotform_id']}")
+            except Exception as e:
+                print(f"Error adding paid case in backup: {e}")
+                continue
+        
+        return paid_cases_added

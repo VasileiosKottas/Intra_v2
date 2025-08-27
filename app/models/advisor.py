@@ -574,9 +574,7 @@ class Advisor(BaseModel):
             # Must be both Residential AND Lender Commission
             if income_type == 'Lender Commission':
                 mortgage_cases.append(case)
-            else:
-                print(f"   ❌ Excluding: {case.customer_name} (Case: {case.case_type}, Income: {income_type or 'NULL'})")
-        
+
         
         if len(mortgage_cases) == 0:
             return 0
