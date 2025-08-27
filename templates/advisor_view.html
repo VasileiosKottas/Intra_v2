@@ -262,14 +262,7 @@
     <div class="main-content">
         <div class="dashboard-header">
             <h2 class="dashboard-title">{{ advisor.full_name }}'s Performance Dashboard</h2>
-            <p class="dashboard-subtitle">
-                {% if advisor.team %}
-                    Team: {{ advisor.team.name }}
-                    {% if advisor.team.is_hidden %} (Hidden Team){% endif %}
-                {% else %}
-                    Individual Advisor - No Team Assigned
-                {% endif %}
-            </p>
+
             
             <div class="period-controls">
                 <span>Period:</span>
@@ -436,10 +429,6 @@
                                 style="min-width:3.5ch; text-align:right; font-weight:600;">0%</div>
                         </div>
                         <div class="target-details">
-                            <div class="target-row">
-                                <span>🎯 Start:</span>
-                                <span>£0</span>
-                            </div>
                             <div class="target-row">
                                 <span>📊 Team Monthly Goal:</span>
                                 <span><strong>£<span id="team-goal">50,000.00</span></strong></span>
@@ -842,7 +831,7 @@
                 console.error('Error loading user goal data:', error);
             }
         }
-        
+
         async function loadTeamData() {
         try {
             let url = `/api/advisor-team-data/${advisorId}?period=${currentPeriod}`;
@@ -886,9 +875,7 @@
             }
 
             const leaderboardTitle = document.querySelector('.leaderboard-title');
-            if (leaderboardTitle) leaderboardTitle.textContent = 'No Team Assigned';
 
-            const teamTargetTitle = document.getElementById('team-target-title');
             if (teamTargetTitle) teamTargetTitle.textContent = 'No Team Target';
             return;
             }

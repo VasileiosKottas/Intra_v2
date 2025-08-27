@@ -1413,6 +1413,9 @@ class APIController(BaseController):
         return jsonify(debug_data)
 
     def get_performance_boxplot(self):
+        """Get performance boxplot with adaptive granularity for custom ranges"""
+        from app.services.date import DateService
+        
         user = self.get_current_user()
         if not user:
             return jsonify({'periods': [], 'values': [], 'monthly_goals': [], 'current_total': 0, 'monthly_goal': 0})
@@ -1423,6 +1426,18 @@ class APIController(BaseController):
         start_str = request.args.get('start')
         end_str = request.args.get('end')
 
+        # NEW: Handle custom ranges with adaptive granularity
+        if period == 'custom' and start_str and end_str:
+            start_date, end_date = DateService.resolve_period_dates(period, start_str, end_str)
+            
+            # Calculate if date range spans more than one month
+            months_diff = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
+            
+            if months_diff > 0:  # More than one month - use monthly aggregation
+                data = self._custom_monthly_boxplot(user, current_company, metric_type, start_date, end_date)
+                return jsonify(data)
+            # Otherwise fall through to normal weekly processing
+
         # NEW: force 3 monthly buckets for last quarter
         if period == 'quarter':
             from app.services.date import DateService
@@ -1430,7 +1445,7 @@ class APIController(BaseController):
             data = self._quarter_monthly_boxplot(user, current_company, metric_type, start_date, end_date)
             return jsonify(data)
 
-        # existing path (month, year, custom)
+        # existing path (month, year, single-month custom)
         try:
             analytics_service = AnalyticsService(current_company)
             boxplot_data = analytics_service.get_advisor_performance_boxplot(
@@ -1440,18 +1455,16 @@ class APIController(BaseController):
         except Exception as e:
             print(f"Boxplot failed, falling back to timeline: {str(e)}")
             
-            # Fallback to timeline data and convert to boxplot format
+            # Fallback logic remains the same...
             try:
                 analytics_service = AnalyticsService(current_company)
                 timeline_data = analytics_service.get_advisor_performance_timeline(
                     user, period, metric_type, start_str, end_str
                 )
                 
-                # Convert timeline to boxplot format
                 if not timeline_data:
                     return jsonify({'periods': [], 'values': [], 'monthly_goals': [], 'current_total': 0, 'monthly_goal': 0})
                 
-                # Take last 10 points and format them nicely
                 recent_data = timeline_data[-10:] if len(timeline_data) > 10 else timeline_data
                 
                 periods = []
@@ -1465,7 +1478,6 @@ class APIController(BaseController):
                         periods.append(item['date'])
                         values.append(item['value'])
                 
-                # Get monthly goal
                 yearly_goal = user.get_yearly_goal_for_company(current_company) or 50000.0
                 monthly_goal = yearly_goal / 12
                 
@@ -1480,7 +1492,6 @@ class APIController(BaseController):
                 })
             except Exception as fallback_error:
                 print(f"Timeline fallback also failed: {str(fallback_error)}")
-                # Return safe default data
                 yearly_goal = user.get_yearly_goal_for_company(current_company) or 50000.0
                 monthly_goal = yearly_goal / 12
                 
@@ -1492,8 +1503,8 @@ class APIController(BaseController):
                     'monthly_goal': monthly_goal
                 })
 
-
     def get_advisor_performance_boxplot(self, advisor_id):
+        """Get performance boxplot for advisor with adaptive granularity for custom ranges"""
         advisor = db.session.get(Advisor, advisor_id)
         if not advisor:
             return jsonify({'periods': [], 'values': [], 'monthly_goals': [], 'current_total': 0, 'monthly_goal': 0})
@@ -1503,6 +1514,18 @@ class APIController(BaseController):
         period = request.args.get('period', 'month')
         start_str = request.args.get('start')
         end_str = request.args.get('end')
+
+        # NEW: Handle custom ranges with adaptive granularity
+        if period == 'custom' and start_str and end_str:
+            start_date, end_date = DateService.resolve_period_dates(period, start_str, end_str)
+            
+            # Calculate if date range spans more than one month
+            months_diff = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
+            
+            if months_diff > 0:  # More than one month - use monthly aggregation
+                data = self._custom_monthly_boxplot(advisor, current_company, metric_type, start_date, end_date)
+                return jsonify(data)
+            # Otherwise fall through to normal weekly processing
 
         if period == 'quarter':
             from app.services.date import DateService
@@ -1519,18 +1542,16 @@ class APIController(BaseController):
         except Exception as e:
             print(f"Advisor boxplot failed, falling back to timeline: {str(e)}")
             
-            # Fallback to timeline data and convert to boxplot format
+            # Fallback logic same as above but for advisor...
             try:
                 analytics_service = AnalyticsService(current_company)
                 timeline_data = analytics_service.get_advisor_performance_timeline(
                     advisor, period, metric_type, start_str, end_str
                 )
                 
-                # Convert timeline to boxplot format
                 if not timeline_data:
                     return jsonify({'periods': [], 'values': [], 'monthly_goals': [], 'current_total': 0, 'monthly_goal': 0})
                 
-                # Take last 10 points and format them nicely
                 recent_data = timeline_data[-10:] if len(timeline_data) > 10 else timeline_data
                 
                 periods = []
@@ -1544,7 +1565,6 @@ class APIController(BaseController):
                         periods.append(item['date'])
                         values.append(item['value'])
                 
-                # Get monthly goal
                 yearly_goal = advisor.get_yearly_goal_for_company(current_company) or 50000.0
                 monthly_goal = yearly_goal / 12
                 
@@ -1559,7 +1579,6 @@ class APIController(BaseController):
                 })
             except Exception as fallback_error:
                 print(f"Advisor timeline fallback also failed: {str(fallback_error)}")
-                # Return safe default data
                 yearly_goal = advisor.get_yearly_goal_for_company(current_company) or 50000.0
                 monthly_goal = yearly_goal / 12
                 
@@ -1570,7 +1589,56 @@ class APIController(BaseController):
                     'current_total': 0,
                     'monthly_goal': monthly_goal
                 })
-    
+
+    def _custom_monthly_boxplot(self, actor, current_company, metric_type: str, start_date, end_date):
+        """Build monthly buckets for custom date ranges spanning multiple months"""
+        import calendar
+        from datetime import date
+        
+        months = []
+        current_month = start_date.month
+        current_year = start_date.year
+        
+        # Generate all months in the range
+        while date(current_year, current_month, 1) <= end_date:
+            # Calculate month boundaries
+            month_start = max(date(current_year, current_month, 1), start_date)
+            last_day = calendar.monthrange(current_year, current_month)[1]
+            month_end = min(date(current_year, current_month, last_day), end_date)
+            
+            # Calculate metrics for this month
+            metrics = actor.calculate_metrics_for_period(
+                current_company, month_start, month_end,
+                config_manager.get_valid_business_types(current_company),
+                config_manager.get_valid_paid_case_types(current_company)
+            )
+            
+            value = float(metrics['total_submitted'] if metric_type == 'submitted' else metrics['total_paid'])
+            month_label = date(current_year, current_month, 1).strftime('%b %Y')
+            
+            months.append((month_label, value))
+            
+            # Move to next month
+            current_month += 1
+            if current_month > 12:
+                current_month = 1
+                current_year += 1
+        
+        # Get goals
+        yearly_goal = actor.get_yearly_goal_for_company(current_company) or 50000.0
+        monthly_goal = yearly_goal / 12.0
+        
+        periods = [label for (label, _) in months]
+        values = [value for (_, value) in months]
+        
+        return {
+            'periods': periods,
+            'values': values,
+            'monthly_goals': ([monthly_goal] * len(periods)) if metric_type == 'submitted' else [],
+            'current_total': sum(values),
+            'monthly_goal': monthly_goal
+        }
+
     def advisor_sync(self):
         """Sync data for regular advisors (not master restricted)"""
         current_company = SessionManager.get_current_company(session)

@@ -304,8 +304,7 @@ class Advisor(BaseModel):
                     print(f"     ⚠️ OTHER ADVISOR REFERRED TO ME: +£{case.value}")
                 else:
                     print(f"     ❓ Has referral but no match: '{case.who_referred}'")
-            else:
-                print(f"     ❌ No referral (who_referred: {case.who_referred})")
+
         
         
         # Apply the CORRECT formula:
