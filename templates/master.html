@@ -16,6 +16,9 @@
             </select>
             <span>Welcome, Master Administrator!</span>
             <a href="/logout" class="logout-btn">Logout</a>
+            <a href="{{ url_for('master.team_performance_report') }}" class="nav-link">
+                Team Performance Report
+            </a>
         </div>
     </div>
 
@@ -58,6 +61,23 @@
                             <span style="color: #7f8c8d; font-size: 0.9rem; margin-right: 1rem;">
                                 Monthly Goal: £{{ "{:,.2f}".format(team.monthly_goal) }}
                             </span>
+                            <!-- Team Performance Options -->
+                            <div class="dropdown" style="display: inline-block; position: relative; margin-right: 0.5rem;">
+                                <button class="btn-sm" style="background: #17a2b8; color: white;" 
+                                        onclick="toggleDropdown({{ team.id }})">
+                                    📊 Performance Report ▼
+                                </button>
+                                <div class="dropdown-content" id="dropdown-{{ team.id }}" style="display: none; position: absolute; background: white; min-width: 200px; box-shadow: 0px 8px 16px rgba(0,0,0,0.2); z-index: 1000; border-radius: 6px; padding: 8px 0;">
+                                    <a href="#" onclick="openTeamPerformanceReport({{ team.id }}, '{{ team.name }}')" 
+                                    style="display: block; padding: 8px 16px; text-decoration: none; color: #2c3e50;">
+                                        🌐 View Online Report
+                                    </a>
+                                    <a href="#" onclick="downloadTeamExcel({{ team.id }}, '{{ team.name }}')" 
+                                    style="display: block; padding: 8px 16px; text-decoration: none; color: #2c3e50;">
+                                        📄 Download Excel Report
+                                    </a>
+                                </div>
+                            </div>
                             <button class="btn-sm btn-edit" onclick="editTeam({{ team.id }}, '{{ team.name }}', {{ team.monthly_goal }}, {{ team.is_hidden|tojson }})">
                                 ✏️ Edit
                             </button>
@@ -78,12 +98,12 @@
                                 {% else %}
                                 <span class="status-badge status-assigned">Team Member</span>
                                 {% endif %}
-                                <!-- NEW: Individual advisor visibility status -->
+                                <!-- Individual advisor visibility status -->
                                 {% if member.is_hidden_from_team %}
                                 <span class="status-badge status-individual-hidden">Hidden from Team</span>
                                 {% endif %}
                                 
-                                <!-- NEW: Show if member is in multiple teams -->
+                                <!-- Show if member is in multiple teams -->
                                 {% set member_teams = member.get_teams_for_company(session.get('company_mode', 'windsor')) %}
                                 {% if member_teams|length > 1 %}
                                 <span class="status-badge" style="background: #17a2b8; color: white; font-size: 0.7rem;">
@@ -98,7 +118,7 @@
                                 <button class="btn-sm btn-view" onclick="viewAdvisorDashboard({{ member.id }})">
                                     👁️ View
                                 </button>
-                                <!-- NEW: Hide/Show button for individual advisors -->
+                                <!-- Hide/Show button for individual advisors -->
                                 {% if not member.is_master %}
                                 <button class="btn-sm btn-hide-advisor" 
                                         id="hide-btn-{{ member.id }}"
@@ -128,7 +148,7 @@
                                 <button class="btn-sm" style="background: #fd7e14; color: white;" onclick="resetUserPassword({{ member.id }}, '{{ member.full_name }}')">
                                     🔑 Reset
                                 </button>
-                                <!-- UPDATED: Remove from THIS specific team -->
+                                <!-- Remove from THIS specific team -->
                                 <button class="btn-sm btn-unassign" onclick="unassignFromSpecificTeam({{ member.id }}, '{{ member.full_name }}', {{ team.id }}, '{{ team.name }}')">
                                     ❌ Remove
                                 </button>
@@ -675,6 +695,59 @@
             }
         }
 
+        function toggleDropdown(teamId) {
+            // Close all other dropdowns first
+            document.querySelectorAll('[id^="dropdown-"]').forEach(dropdown => {
+                if (dropdown.id !== `dropdown-${teamId}`) {
+                    dropdown.style.display = 'none';
+                }
+            });
+            
+            // Toggle this dropdown
+            const dropdown = document.getElementById(`dropdown-${teamId}`);
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.dropdown')) {
+                document.querySelectorAll('[id^="dropdown-"]').forEach(dropdown => {
+                    dropdown.style.display = 'none';
+                });
+            }
+        });        
+
+
+        function openTeamPerformanceReport(teamId, teamName) {
+            // Close dropdown
+            document.getElementById(`dropdown-${teamId}`).style.display = 'none';
+            
+            // Open the team performance report page with the specific team ID
+            const url = `/master/team-performance-report?team_id=${teamId}&team_name=${encodeURIComponent(teamName)}`;
+            window.open(url, '_blank');
+        }
+
+        function downloadTeamExcel(teamId, teamName) {
+            // Close dropdown
+            document.getElementById(`dropdown-${teamId}`).style.display = 'none';
+            
+            // Get current month or let user select
+            const month = new Date().toISOString().slice(0, 7); // YYYY-MM format
+            
+            // You could add a month selector here, but for now use current month
+            const url = `/master/team-performance-excel/${teamId}?month=${month}`;
+            
+            // Create a temporary link to trigger download
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${teamName}_Performance_Report.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Show feedback
+            showSuccess(`Downloading ${teamName} performance report for ${new Date().toLocaleDateString('en-US', {month: 'long', year: 'numeric'})}`);
+        }
         // Close modal when clicking outside
         window.onclick = function(event) {
             if (event.target.classList.contains('modal')) {

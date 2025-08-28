@@ -700,3 +700,10 @@ class Advisor(BaseModel):
                     return True
         
         return False
+    
+    def get_yearly_goal(self, company):
+        visible_team = self.get_visible_team_for_company(company)
+        if visible_team:
+            for membership in self.team_memberships:
+                if membership.team.id == visible_team.id and membership.yearly_goal > 0:
+                    return membership.yearly_goal

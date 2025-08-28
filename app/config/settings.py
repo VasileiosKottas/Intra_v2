@@ -23,12 +23,17 @@ class ConfigurationManager:
     def _initialize_app_config(self) -> Dict:
         """Initialize application-wide configuration"""
         return {
+            # Existing JotForm config
             'JOTFORM_API_KEY': os.getenv('JOTFORM_API_KEY', 'b78b083ca0a78392acf8de69666a3577'),
             'SUBMISSION_FORM_ID': "250232251408041",
             'PAID_FORM_ID': "251406545360048",
             'BASE_URL': "https://eu-api.jotform.com",
-            'SYNC_HOURS': [9, 17],  # 9 AM and 5 PM
-            'SYNC_INTERVAL_MINUTES': 30,  # Every 30 minutes
+            
+            # Add Calendly configuration
+            'CALENDLY_ACCESS_TOKEN': 'eyJraWQiOiIxY2UxZTEzNjE3ZGNmNzY2YjNjZWJjY2Y4ZGM1YmFmYThhNjVlNjg0MDIzZjdjMzJiZTgzNDliMjM4MDEzNWI0IiwidHlwIjoiUEFUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiJodHRwczovL2F1dGguY2FsZW5kbHkuY29tIiwiaWF0IjoxNzU2MzAxNTk2LCJqdGkiOiI3NjFjNTIzOC1jZWZjLTRkNTAtYjBhMi1kNjdkNjFmZTczMzQiLCJ1c2VyX3V1aWQiOiJiNDNiYmJlNS1hNDEwLTQ0YTctYjIwNS1lMzk2N2ExNTgxYTkifQ.GvnP5kkXUfWk9SLHDzkhFnzbLyWBcD3ipCCq5I4tUt0OVFqOOXoFcw1WWsyCr4POLKd_fB-oQaSCearT3SyKyw',            
+            # Other existing config
+            'SYNC_HOURS': [9, 17],
+            'SYNC_INTERVAL_MINUTES': 120,
             'DEFAULT_YEARLY_GOAL': 50000.0,
             'DEFAULT_TEAM_GOAL': 50000.0
         }

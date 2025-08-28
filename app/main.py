@@ -6,6 +6,17 @@ import threading
 from app import create_app
 from app.services.sync import AutoSyncManager
 
+def register_team_report_routes(app):
+    """Register team performance report routes"""
+    from app.controllers.team_report_controller import TeamReportController
+    
+    try:
+        team_report_controller = TeamReportController(app)
+        team_report_controller.register_routes()
+        print("Team report routes registered successfully")
+    except Exception as e:
+        print(f"Error registering team report routes: {e}")
+
 class SalesDashboardApp:
     """Main application class that orchestrates all components"""
     
