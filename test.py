@@ -285,7 +285,7 @@ def test_exact_example():
                 'ctok': API_TOKEN,
                 'c': 'search',
                 'ty': 'all',
-                'sd': '20250521',
+                'sd': '20250711',
                 'ed': '20250713124500'  # End of day with time
             }
         },
@@ -295,8 +295,8 @@ def test_exact_example():
                 'ctok': API_TOKEN,
                 'c': 'search', 
                 'ty': 'all',
-                'sd': '20250821',
-                'ed': '20250821'
+                'sd': '20250718',
+                'ed': '20250721'
             }
         },
         {

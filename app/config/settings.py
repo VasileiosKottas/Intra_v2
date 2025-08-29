@@ -1,3 +1,5 @@
+# app/config/settings.py - Updated with ALTOS API Token
+
 """
 Configuration manager for application settings
 """
@@ -29,8 +31,12 @@ class ConfigurationManager:
             'PAID_FORM_ID': "251406545360048",
             'BASE_URL': "https://eu-api.jotform.com",
             
-            # Add Calendly configuration
-            'CALENDLY_ACCESS_TOKEN': 'eyJraWQiOiIxY2UxZTEzNjE3ZGNmNzY2YjNjZWJjY2Y4ZGM1YmFmYThhNjVlNjg0MDIzZjdjMzJiZTgzNDliMjM4MDEzNWI0IiwidHlwIjoiUEFUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiJodHRwczovL2F1dGguY2FsZW5kbHkuY29tIiwiaWF0IjoxNzU2MzAxNTk2LCJqdGkiOiI3NjFjNTIzOC1jZWZjLTRkNTAtYjBhMi1kNjdkNjFmZTczMzQiLCJ1c2VyX3V1aWQiOiJiNDNiYmJlNS1hNDEwLTQ0YTctYjIwNS1lMzk2N2ExNTgxYTkifQ.GvnP5kkXUfWk9SLHDzkhFnzbLyWBcD3ipCCq5I4tUt0OVFqOOXoFcw1WWsyCr4POLKd_fB-oQaSCearT3SyKyw',            
+            # Calendly configuration (existing token)
+            'CALENDLY_ACCESS_TOKEN': 'eyJraWQiOiIxY2UxZTEzNjE3ZGNmNzY2YjNjZWJjY2Y4ZGM1YmFmYThhNjVlNjg0MDIzZjdjMzJiZTgzNDliMjM4MDEzNWI0IiwidHlwIjoiUEFUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiJodHRwczovL2F1dGguY2FsZW5kbHkuY29tIiwiaWF0IjoxNzU2MzAxNTk2LCJqdGkiOiI3NjFjNTIzOC1jZWZjLTRkNTAtYjBhMi1kNjdkNjFmZTczMzQiLCJ1c2VyX3V1aWQiOiJiNDNiYmJlNS1hNDEwLTQ0YTctYjIwNS1lMzk2N2ExNTgxYTkifQ.GvnP5kkXUfWk9SLHDzkhFnzbLyWBcD3ipCCq5I4tUt0OVFqOOXoFcw1WWsyCr4POLKd_fB-oQaSCearT3SyKyw',
+            
+            # ALTOS API configuration - ADD THIS TOKEN
+            'ALTOS_API_TOKEN': os.getenv('ALTOS_API_TOKEN', 'your_altos_token_here'),
+            
             # Other existing config
             'SYNC_HOURS': [9, 17],
             'SYNC_INTERVAL_MINUTES': 120,

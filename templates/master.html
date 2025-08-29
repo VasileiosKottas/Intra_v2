@@ -76,6 +76,8 @@
                                     style="display: block; padding: 8px 16px; text-decoration: none; color: #2c3e50;">
                                         📄 Download Excel Report
                                     </a>
+                                    <a href="#" onclick="openYTDDashboard({{ team.id }}, '{{ team.name }}')" 
+                                    style="display: block; padding: 8px 16px; text-decoration: none; color: #2c3e50;">📊 YTD Dashboard</a>
                                 </div>
                             </div>
                             <button class="btn-sm btn-edit" onclick="editTeam({{ team.id }}, '{{ team.name }}', {{ team.monthly_goal }}, {{ team.is_hidden|tojson }})">
@@ -717,7 +719,6 @@
             }
         });        
 
-
         function openTeamPerformanceReport(teamId, teamName) {
             // Close dropdown
             document.getElementById(`dropdown-${teamId}`).style.display = 'none';
@@ -748,6 +749,7 @@
             // Show feedback
             showSuccess(`Downloading ${teamName} performance report for ${new Date().toLocaleDateString('en-US', {month: 'long', year: 'numeric'})}`);
         }
+
         // Close modal when clicking outside
         window.onclick = function(event) {
             if (event.target.classList.contains('modal')) {
@@ -989,6 +991,12 @@
                     </div>
                 `;
             }
+        }
+
+        function openYTDDashboard(teamId, teamName) {
+            document.getElementById(`dropdown-${teamId}`).style.display = 'none';
+            const url = `/master/ytd-dashboard?team_id=${teamId}&team_name=${encodeURIComponent(teamName)}`;
+            window.open(url, '_blank');
         }
 
         function displayReferralRecipients() {

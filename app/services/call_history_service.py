@@ -1,13 +1,11 @@
+# Enhanced ALTOS Call History Service with Team Analytics
 # app/services/call_history_service.py
-"""
-ALTOS Call History API integration service
-"""
 
 import requests
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from urllib.parse import urlencode
-from app.config import config_manager
+from app.config.settings import ConfigurationManager
 from app.models import db
 from app.models.base import BaseModel
 
@@ -30,40 +28,35 @@ class CallRecord(BaseModel):
     call_status = db.Column(db.String(50))  # r field for reason if failed
     company = db.Column(db.String(50), nullable=False, index=True)
     
-    # Constraints
     __table_args__ = (
         db.UniqueConstraint('sid', 'company', name='unique_call_per_company'),
         db.Index('idx_advisor_date_direction', 'advisor_email', 'call_start_time', 'direction'),
     )
 
 class CallHistoryService:
-    """Service for ALTOS Call History API integration"""
+    """Enhanced service for ALTOS Call History API integration with team analytics"""
     
     def __init__(self):
-        self.api_token = config_manager.get_app_config('ALTOS_API_TOKEN')
+        self.config_manager = ConfigurationManager()
+        self.api_token = self.config_manager.get_app_config('ALTOS_API_TOKEN')
         self.base_url = "https://extprov.myphones.net/callhistory.aspx"
         
     def _is_core_hours(self) -> bool:
         """Check if current time is during core hours (API restriction)"""
         current_hour = datetime.now().hour
-        # Assume core hours are 9 AM to 5 PM weekdays
         if datetime.now().weekday() >= 5:  # Weekend
             return False
         return 9 <= current_hour <= 17
     
-    def _format_datetime(self, date_str: str, time_str: str = None) -> str:
-        """Format date for API (YYYYMMDD or YYYYMMDDHHMMSS)"""
-        date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+    def _format_datetime(self, date_obj: datetime, include_time: bool = False) -> str:
+        """Format datetime for API (YYYYMMDD or YYYYMMDDHHMMSS)"""
         formatted = date_obj.strftime('%Y%m%d')
-        
-        if time_str:
-            time_obj = datetime.strptime(time_str, '%H:%M')
-            formatted += time_obj.strftime('%H%M00')  # Add seconds as 00
-            
+        if include_time:
+            formatted += date_obj.strftime('%H%M%S')
         return formatted
     
     def _build_api_url(self, start_date: datetime, end_date: datetime, 
-                       call_type: str = 'all', calling_filter: str = None, 
+                       call_type: str = 'outbound', calling_filter: str = None, 
                        called_filter: str = None) -> str:
         """Build API URL with parameters"""
         
@@ -72,13 +65,13 @@ class CallHistoryService:
             raise ValueError("Date range cannot exceed 7 days for ALTOS API")
         
         # Format dates
-        sd = start_date.strftime('%Y%m%d')
-        ed = end_date.strftime('%Y%m%d')
+        sd = self._format_datetime(start_date)
+        ed = self._format_datetime(end_date)
         
         params = {
             'ctok': self.api_token,
             'c': 'search',
-            'ty': call_type,
+            'ty': call_type,  # 'outbound', 'inbound', or 'all'
             'sd': sd,
             'ed': ed
         }
@@ -94,6 +87,7 @@ class CallHistoryService:
     def _make_api_request(self, url: str) -> Optional[Dict]:
         """Make authenticated request to ALTOS API"""
         try:
+            print(f"ALTOS API Request: {url}")
             response = requests.get(url, timeout=30)
             
             if response.status_code == 403:
@@ -109,8 +103,8 @@ class CallHistoryService:
             raise Exception(f"ALTOS API request failed: {str(e)}")
     
     def fetch_call_data(self, start_date: datetime, end_date: datetime, 
-                        call_type: str = 'all') -> List[Dict]:
-        """Fetch call data from ALTOS API"""
+                        call_type: str = 'outbound') -> List[Dict]:
+        """Fetch call data from ALTOS API, handling date range limits"""
         
         if self._is_core_hours():
             print(f"Warning: Fetching during core hours may be restricted")
@@ -119,7 +113,7 @@ class CallHistoryService:
         all_calls = []
         current_start = start_date
         
-        while current_start < end_date:
+        while current_start <= end_date:
             current_end = min(current_start + timedelta(days=6), end_date)
             
             try:
@@ -128,182 +122,350 @@ class CallHistoryService:
                 
                 if data and 'myphones' in data and 'callhistory' in data['myphones']:
                     calls = data['myphones']['callhistory']
+                    
+                    # Ensure calls is a list
+                    if isinstance(calls, dict):
+                        calls = [calls]  # Single call returned as dict
+                    elif not isinstance(calls, list):
+                        calls = []
+                    
                     all_calls.extend(calls)
+                    print(f"Fetched {len(calls)} calls for {current_start.date()} - {current_end.date()}")
+                else:
+                    print(f"No call data returned for {current_start.date()} - {current_end.date()}")
                     
             except Exception as e:
-                print(f"Error fetching calls for {current_start} - {current_end}: {e}")
-                # Continue with next chunk
-            
+                print(f"Error fetching calls for {current_start.date()} - {current_end.date()}: {e}")
+                # Continue with next chunk rather than failing completely
+         
+            # Move to next chunk
             current_start = current_end + timedelta(days=1)
         
+        print(f"Total calls fetched: {len(all_calls)}")
         return all_calls
     
-    def get_placeholder_data(self, start_date: datetime, end_date: datetime, 
-                           advisor_emails: List[str]) -> List[Dict]:
-        """Generate placeholder call data during core hours"""
-        import random
+    def get_team_call_analytics(self, team_members: List, start_date: datetime, 
+                               end_date: datetime, company: str) -> Dict:
+        """Get call analytics for entire team"""
+        analytics = {}
         
-        placeholder_calls = []
-        current_date = start_date
-        
-        while current_date <= end_date:
-            for email in advisor_emails:
-                # Generate 5-15 random outbound calls per day per advisor
-                num_calls = random.randint(5, 15)
-                
-                for i in range(num_calls):
-                    call_time = current_date + timedelta(
-                        hours=random.randint(9, 17),
-                        minutes=random.randint(0, 59)
-                    )
-                    
-                    placeholder_calls.append({
-                        'sid': f"placeholder_{email}_{current_date.strftime('%Y%m%d')}_{i}",
-                        'd': 'O',  # Outbound
-                        'cg': '01234567890',  # Generic calling number
-                        'cd': f"0800{random.randint(100000, 999999)}",  # Random called number
-                        'rs': call_time.strftime('%Y%m%d%H%M%S'),
-                        'cs': call_time.strftime('%Y%m%d%H%M%S') if random.choice([True, False]) else None,
-                        't': random.randint(30, 300),  # Duration in seconds
-                        'c': random.choice([True, False]),  # Answered
-                        'v': random.choice([True, False, False]),  # Voicemail (less likely)
-                        'f': False,  # Not transferred
-                        'advisor_email': email
-                    })
+        try:
+            # Fetch all call data for the period
+            outbound_calls = self.fetch_call_data(start_date, end_date, 'outbound')
+            inbound_calls = self.fetch_call_data(start_date, end_date, 'inbound')
             
-            current_date += timedelta(days=1)
+            # Process each team member
+            for member in team_members:
+                member_email = self._get_member_email(member)
+                
+                # Filter calls for this member
+                member_outbound = [call for call in outbound_calls 
+                                 if call.get('advisor_email', '').lower() == member_email.lower()]
+                member_inbound = [call for call in inbound_calls 
+                                if call.get('advisor_email', '').lower() == member_email.lower()]
+                
+                # Calculate statistics
+                analytics[member_email] = {
+                    'outbound_calls': len(member_outbound),
+                    'inbound_calls': len(member_inbound),
+                    'total_calls': len(member_outbound) + len(member_inbound),
+                    'answered_outbound': len([c for c in member_outbound if c.get('was_answered', False)]),
+                    'answered_inbound': len([c for c in member_inbound if c.get('was_answered', False)]),
+                    'total_duration': sum(c.get('duration_seconds', 0) for c in member_outbound + member_inbound),
+                    'avg_call_duration': 0
+                }
+                
+                # Calculate average call duration
+                total_answered = analytics[member_email]['answered_outbound'] + analytics[member_email]['answered_inbound']
+                if total_answered > 0:
+                    analytics[member_email]['avg_call_duration'] = analytics[member_email]['total_duration'] / total_answered
+
+        except Exception as e:
+            print(f"Error getting team call analytics: {e}")
+            # Return empty analytics for all members on error
+            for member in team_members:
+                member_email = self._get_member_email(member)
+                analytics[member_email] = {
+                    'outbound_calls': 0, 'inbound_calls': 0, 'total_calls': 0,
+                    'answered_outbound': 0, 'answered_inbound': 0, 'total_duration': 0,
+                    'avg_call_duration': 0
+                }
         
-        return placeholder_calls
+        return analytics
     
-    def store_call_data(self, calls_data: List[Dict], company: str, 
-                        advisor_email_mapping: Dict[str, str] = None):
-        """Store call data in database"""
+    def _get_member_email(self, member) -> str:
+        """Get member email with fallback"""
+        if hasattr(member, 'email') and member.email:
+            return member.email
         
-        for call in calls_data:
-            try:
-                # Parse call start time
-                rs_str = call.get('rs', '')
-                if len(rs_str) >= 8:
-                    if len(rs_str) >= 14:  # Full datetime
-                        call_time = datetime.strptime(rs_str[:14], '%Y%m%d%H%M%S')
-                    else:  # Date only
-                        call_time = datetime.strptime(rs_str[:8], '%Y%m%d')
-                else:
-                    continue  # Skip invalid records
-                
-                # Parse answered time if available
-                answered_time = None
-                cs_str = call.get('cs', '')
-                if cs_str and len(cs_str) >= 14:
-                    try:
-                        answered_time = datetime.strptime(cs_str[:14], '%Y%m%d%H%M%S')
-                    except ValueError:
-                        pass
-                
-                # Determine advisor email (use mapping if provided)
-                advisor_email = call.get('advisor_email')
-                if not advisor_email and advisor_email_mapping:
-                    calling_number = call.get('cg', '')
-                    advisor_email = advisor_email_mapping.get(calling_number)
-                
-                if not advisor_email:
-                    continue  # Skip if we can't identify the advisor
-                
+        # Generate email from name as fallback
+        return f"{member.full_name.lower().replace(' ', '.')}@company.com"
+    
+    def sync_call_records_to_db(self, calls_data: List[Dict], company: str) -> int:
+        """Sync call records to database to avoid repeated API calls"""
+        synced_count = 0
+        
+        try:
+            for call in calls_data:
                 # Check if record already exists
                 existing = CallRecord.query.filter_by(
                     sid=call.get('sid'),
                     company=company
                 ).first()
                 
-                if existing:
-                    continue  # Skip duplicates
-                
-                # Create new call record
-                call_record = CallRecord(
-                    sid=call.get('sid'),
-                    advisor_email=advisor_email.lower(),
-                    direction=call.get('d', 'O'),
-                    calling_number=call.get('cg'),
-                    called_number=call.get('cd'),
-                    call_start_time=call_time,
-                    call_answered_time=answered_time,
-                    duration_seconds=call.get('t', 0),
-                    was_answered=call.get('c', False),
-                    was_voicemail=call.get('v', False),
-                    was_transferred=call.get('f', False),
-                    call_status=call.get('r'),
-                    company=company
-                )
-                
-                db.session.add(call_record)
-                
-            except Exception as e:
-                print(f"Error storing call record: {e}")
-                continue
+                if not existing:
+                    # Parse datetime fields
+                    start_time = self._parse_altos_datetime(call.get('rs'))
+                    answered_time = self._parse_altos_datetime(call.get('cs')) if call.get('cs') else None
+                    
+                    # Create new record
+                    record = CallRecord(
+                        sid=call.get('sid'),
+                        advisor_email=call.get('advisor_email', ''),
+                        direction=call.get('direction', 'O'),
+                        calling_number=call.get('cg'),
+                        called_number=call.get('cd'),
+                        call_start_time=start_time,
+                        call_answered_time=answered_time,
+                        duration_seconds=int(call.get('t', 0)),
+                        was_answered=bool(call.get('c', False)),
+                        was_voicemail=bool(call.get('v', False)),
+                        was_transferred=bool(call.get('f', False)),
+                        call_status=call.get('r', ''),
+                        company=company
+                    )
+                    
+                    db.session.add(record)
+                    synced_count += 1
+            
+            db.session.commit()
+            print(f"Synced {synced_count} new call records to database")
+            
+        except Exception as e:
+            print(f"Error syncing call records: {e}")
+            db.session.rollback()
+        
+        return synced_count
+    
+    def _parse_altos_datetime(self, datetime_str: str) -> Optional[datetime]:
+        """Parse ALTOS datetime string to Python datetime"""
+        if not datetime_str:
+            return None
         
         try:
-            db.session.commit()
-            print(f"Stored {len(calls_data)} call records for {company}")
-        except Exception as e:
-            db.session.rollback()
-            print(f"Error committing call data: {e}")
+            # ALTOS returns datetime in format: YYYYMMDDHHMMSS
+            if len(datetime_str) >= 14:
+                return datetime.strptime(datetime_str[:14], '%Y%m%d%H%M%S')
+            elif len(datetime_str) >= 8:
+                return datetime.strptime(datetime_str[:8], '%Y%m%d')
+            else:
+                return None
+        except ValueError as e:
+            print(f"Error parsing ALTOS datetime '{datetime_str}': {e}")
+            return None
     
-    def get_advisor_call_metrics(self, advisor_email: str, start_date: datetime, 
-                                end_date: datetime, company: str) -> Dict:
-        """Get call metrics for a specific advisor"""
-        
-        calls = CallRecord.query.filter(
-            CallRecord.advisor_email == advisor_email.lower(),
-            CallRecord.company == company,
-            CallRecord.call_start_time >= start_date,
-            CallRecord.call_start_time <= end_date
-        ).all()
-        
-        outbound_calls = [c for c in calls if c.direction == 'O']
-        inbound_calls = [c for c in calls if c.direction == 'I']
-        
+    def get_cached_call_data(self, start_date: datetime, end_date: datetime, 
+                           company: str, call_type: str = 'outbound') -> List[Dict]:
+        """Get call data from database cache first, then API if needed"""
+        try:
+            # Check if we have recent data in cache
+            cached_records = CallRecord.query.filter(
+                CallRecord.company == company,
+                CallRecord.call_start_time >= start_date,
+                CallRecord.call_start_time <= end_date,
+                CallRecord.direction == ('O' if call_type == 'outbound' else 'I')
+            ).all()
+            
+            # If we have recent cached data (within last 2 hours), use it
+            if cached_records:
+                latest_record = max(cached_records, key=lambda x: x.created_at)
+                cache_age = datetime.utcnow() - latest_record.created_at
+                
+                if cache_age.total_seconds() < 7200:  # 2 hours
+                    print(f"Using cached call data ({len(cached_records)} records)")
+                    return [self._record_to_dict(record) for record in cached_records]
+            
+            # Fetch fresh data from API
+            print("Fetching fresh call data from ALTOS API...")
+            fresh_data = self.fetch_call_data(start_date, end_date, call_type)
+            
+            # Cache the fresh data
+            if fresh_data:
+                self.sync_call_records_to_db(fresh_data, company)
+            
+            return fresh_data
+            
+        except Exception as e:
+            print(f"Error getting call data: {e}")
+            # Fallback to cached data even if old
+            cached_records = CallRecord.query.filter(
+                CallRecord.company == company,
+                CallRecord.call_start_time >= start_date,
+                CallRecord.call_start_time <= end_date
+            ).all()
+            
+            return [self._record_to_dict(record) for record in cached_records]
+    
+    def _record_to_dict(self, record: CallRecord) -> Dict:
+        """Convert CallRecord to dictionary matching API format"""
         return {
-            'total_calls': len(calls),
-            'outbound_calls': len(outbound_calls),
-            'inbound_calls': len(inbound_calls),
-            'outbound_answered': sum(1 for c in outbound_calls if c.was_answered),
-            'total_talk_time': sum(c.duration_seconds for c in calls),
-            'avg_call_duration': sum(c.duration_seconds for c in calls) / len(calls) if calls else 0,
-            'calls_by_date': self._group_calls_by_date(calls)
+            'sid': record.sid,
+            'advisor_email': record.advisor_email,
+            'direction': record.direction,
+            'cg': record.calling_number,
+            'cd': record.called_number,
+            'rs': record.call_start_time.strftime('%Y%m%d%H%M%S') if record.call_start_time else '',
+            'cs': record.call_answered_time.strftime('%Y%m%d%H%M%S') if record.call_answered_time else '',
+            't': record.duration_seconds,
+            'c': record.was_answered,
+            'v': record.was_voicemail,
+            'f': record.was_transferred,
+            'r': record.call_status
         }
     
-    def _group_calls_by_date(self, calls: List[CallRecord]) -> Dict[str, int]:
-        """Group calls by date"""
-        calls_by_date = {}
-        for call in calls:
-            date_key = call.call_start_time.date().isoformat()
-            calls_by_date[date_key] = calls_by_date.get(date_key, 0) + 1
-        return calls_by_date
+    def get_team_analytics_summary(self, team_members: List, start_date: datetime, 
+                                  end_date: datetime, company: str) -> Dict:
+        """Get comprehensive call analytics for a team"""
+        analytics = {
+            'team_totals': {
+                'total_outbound': 0,
+                'total_inbound': 0,
+                'answered_outbound': 0,
+                'answered_inbound': 0,
+                'total_duration': 0
+            },
+            'member_breakdown': {}
+        }
+        
+        try:
+            # Get call data (using cache when possible)
+            outbound_calls = self.get_cached_call_data(start_date, end_date, company, 'outbound')
+            inbound_calls = self.get_cached_call_data(start_date, end_date, company, 'inbound')
+            
+            # Process each team member
+            for member in team_members:
+                member_email = self._get_member_email(member).lower()
+                
+                # Filter calls for this member
+                member_outbound = [call for call in outbound_calls 
+                                 if call.get('advisor_email', '').lower() == member_email]
+                member_inbound = [call for call in inbound_calls 
+                                if call.get('advisor_email', '').lower() == member_email]
+                
+                # Calculate member statistics
+                member_stats = {
+                    'outbound_calls': len(member_outbound),
+                    'inbound_calls': len(member_inbound),
+                    'total_calls': len(member_outbound) + len(member_inbound),
+                    'answered_outbound': len([c for c in member_outbound if c.get('c', False)]),
+                    'answered_inbound': len([c for c in member_inbound if c.get('c', False)]),
+                    'total_duration': sum(c.get('t', 0) for c in member_outbound + member_inbound),
+                    'avg_call_duration': 0,
+                    'voicemails': len([c for c in member_outbound + member_inbound if c.get('v', False)]),
+                    'success_rate': 0
+                }
+                
+                # Calculate averages and rates
+                total_answered = member_stats['answered_outbound'] + member_stats['answered_inbound']
+                if total_answered > 0:
+                    member_stats['avg_call_duration'] = member_stats['total_duration'] / total_answered
+                
+                if member_stats['outbound_calls'] > 0:
+                    member_stats['success_rate'] = (member_stats['answered_outbound'] / member_stats['outbound_calls']) * 100
+                
+                analytics['member_breakdown'][member_email] = member_stats
+                
+                # Add to team totals
+                analytics['team_totals']['total_outbound'] += member_stats['outbound_calls']
+                analytics['team_totals']['total_inbound'] += member_stats['inbound_calls'] 
+                analytics['team_totals']['answered_outbound'] += member_stats['answered_outbound']
+                analytics['team_totals']['answered_inbound'] += member_stats['answered_inbound']
+                analytics['team_totals']['total_duration'] += member_stats['total_duration']
+        
+        except Exception as e:
+            print(f"Error getting team call analytics: {e}")
+            # Return empty analytics for all members on error
+            for member in team_members:
+                member_email = self._get_member_email(member)
+                analytics['member_breakdown'][member_email] = {
+                    'outbound_calls': 0, 'inbound_calls': 0, 'total_calls': 0,
+                    'answered_outbound': 0, 'answered_inbound': 0, 'total_duration': 0,
+                    'avg_call_duration': 0, 'voicemails': 0, 'success_rate': 0
+                }
+        
+        return analytics
     
-    def sync_team_call_data(self, team_members: List, company: str, 
-                           start_date: datetime, end_date: datetime, 
-                           use_placeholders: bool = None) -> Dict:
-        """Sync call data for team members"""
+    def _get_member_email(self, member) -> str:
+        """Get member email with fallback"""
+        if hasattr(member, 'email') and member.email:
+            return member.email
         
-        if use_placeholders is None:
-            use_placeholders = self._is_core_hours()
-        
-        advisor_emails = [member.email for member in team_members]
-        
-        if use_placeholders:
-            print("Using placeholder data during core hours")
-            calls_data = self.get_placeholder_data(start_date, end_date, advisor_emails)
-        else:
-            calls_data = self.fetch_call_data(start_date, end_date, call_type='all')
-        
-        # Store the call data
-        self.store_call_data(calls_data, company)
-        
-        # Return metrics for each team member
-        team_metrics = {}
-        for member in team_members:
-            team_metrics[member.email] = self.get_advisor_call_metrics(
-                member.email, start_date, end_date, company
-            )
-        
-        return team_metrics
+        # Generate email from name as fallback
+        return f"{member.full_name.lower().replace(' ', '.')}@company.com"
+    
+    def test_api_connection(self) -> Dict:
+        """Test ALTOS API connection"""
+        try:
+            if not self.api_token:
+                return {'success': False, 'error': 'No ALTOS API token configured'}
+            
+            # Test with yesterday's data (small range)
+            yesterday = datetime.now() - timedelta(days=1)
+            test_url = self._build_api_url(yesterday, yesterday, 'outbound')
+            
+            data = self._make_api_request(test_url)
+            
+            if data:
+                call_count = 0
+                if 'myphones' in data and 'callhistory' in data['myphones']:
+                    calls = data['myphones']['callhistory']
+                    if isinstance(calls, list):
+                        call_count = len(calls)
+                    elif isinstance(calls, dict):
+                        call_count = 1
+                
+                return {
+                    'success': True, 
+                    'message': f'API connection successful, found {call_count} calls for yesterday',
+                    'test_date': yesterday.strftime('%Y-%m-%d')
+                }
+            else:
+                return {'success': False, 'error': 'No data returned from API'}
+                
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+    
+    def get_member_call_summary(self, member_email: str, start_date: datetime, 
+                               end_date: datetime, company: str) -> Dict:
+        """Get detailed call summary for a specific member"""
+        try:
+            # Get cached data first
+            outbound_calls = self.get_cached_call_data(start_date, end_date, company, 'outbound')
+            inbound_calls = self.get_cached_call_data(start_date, end_date, company, 'inbound')
+            
+            # Filter for this member
+            member_outbound = [call for call in outbound_calls 
+                             if call.get('advisor_email', '').lower() == member_email.lower()]
+            member_inbound = [call for call in inbound_calls 
+                            if call.get('advisor_email', '').lower() == member_email.lower()]
+            
+            return {
+                'outbound_calls': len(member_outbound),
+                'inbound_calls': len(member_inbound),
+                'outbound_details': member_outbound,
+                'inbound_details': member_inbound,
+                'summary': {
+                    'total_calls': len(member_outbound) + len(member_inbound),
+                    'answered_calls': len([c for c in member_outbound + member_inbound if c.get('c', False)]),
+                    'total_duration_minutes': sum(c.get('t', 0) for c in member_outbound + member_inbound) / 60,
+                    'success_rate': (len([c for c in member_outbound if c.get('c', False)]) / len(member_outbound) * 100) if member_outbound else 0
+                }
+            }
+            
+        except Exception as e:
+            print(f"Error getting member call summary for {member_email}: {e}")
+            return {
+                'outbound_calls': 0, 'inbound_calls': 0,
+                'outbound_details': [], 'inbound_details': [],
+                'summary': {'total_calls': 0, 'answered_calls': 0, 'total_duration_minutes': 0, 'success_rate': 0}
+            }

@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team YTD Performance Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f5f7fa;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .header-title {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            color: #34495e;
+            font-size: 0.9rem;
+        }
+
+        
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2980b9 0%, #1f618d 100%);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .dashboard-tabs {
+            display: flex;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 15px 20px;
+            background: #ecf0f1;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            color: #7f8c8d;
+        }
+
+        .tab-button.active {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .ytd-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .summary-card h4 {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+
+        .summary-card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #dc3545;
+        }
+
+        .month-section {
+            margin-bottom: 30px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .month-header {
+            background: #3498db;
+            color: white;
+            padding: 15px;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .data-table th {
+            background: #f8f9fa;
+            padding: 12px 8px;
+            text-align: center;
+            font-weight: 600;
+            border-bottom: 2px solid #dee2e6;
+            font-size: 0.75rem;
+            line-height: 1.2;
+        }
+
+        .data-table td {
+            padding: 10px 8px;
+            text-align: center;
+            border-bottom: 1px solid #f1f3f4;
+        }
+
+        .data-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .totals-row {
+            background: #e3f2fd !important;
+            font-weight: bold;
+        }
+
+        .currency {
+            color: #27ae60;
+            font-weight: 600;
+        }
+
+        .negative {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+
+        /* C&C Theme */
+        body.cnc-theme {
+            --primary-color: #f39c12;
+            --secondary-color: #e67e22;
+        }
+
+        body.cnc-theme .header {
+            border-top: 4px solid var(--primary-color);
+        }
+
+        body.cnc-theme .month-header {
+            background: var(--primary-color);
+        }
+
+        body.cnc-theme .tab-button.active {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        }
+
+        body.cnc-theme .summary-card {
+            border-left-color: var(--primary-color);
+        }
+
+        body.cnc-theme .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        }
+
+        body.cnc-theme .btn-primary:hover {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, #d35400 100%);
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .container { padding: 10px; }
+            .header { 
+                flex-direction: column; 
+                text-align: center; 
+                gap: 15px;
+            }
+            .controls { 
+                justify-content: center; 
+                width: 100%;
+            }
+            .control-group {
+                min-width: 120px;
+            }
+            .dashboard-tabs { 
+                flex-direction: column;
+            }
+            .data-table { 
+                font-size: 0.7rem; 
+            }
+            .data-table th,
+            .data-table td {
+                padding: 6px 4px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .ytd-summary {
+                grid-template-columns: 1fr;
+            }
+            .data-table {
+                font-size: 0.65rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="header-title">Team YTD Performance Dashboard</h1>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="companySelect">Company</label>
+                    <select id="companySelect" onchange="loadAvailableTeams()">
+                        <option value="windsor">Windsor</option>
+                        <option value="cnc">C&C</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="teamSelect">Select Team</label>
+                    <select id="teamSelect">
+                        <option value="">Select a team...</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="startDateSelect">Start Date</label>
+                    <input type="date" id="startDateSelect" value="">
+                </div>
+                <div class="control-group">
+                    <label for="endDateSelect">End Date</label>
+                    <input type="date" id="endDateSelect" value="">
+                </div>
+                <button class="btn-primary" onclick="loadDashboard()">Load Dashboard</button>
+                <button class="btn-primary" onclick="downloadExcel()" id="downloadBtn" style="display:none;">Download Excel</button>
+                <button class="btn-secondary" onclick="testCalendly()">Test Calendly</button>
+            </div>
+        </div>
+
+        <div class="dashboard-tabs">
+            <button class="tab-button active" onclick="switchTab('activity')">Activity & Submitted</button>
+            <button class="tab-button" onclick="switchTab('ytd-totals')">YTD Totals</button>
+            <button class="tab-button" onclick="switchTab('pipeline')">Pipeline Summary</button>
+        </div>
+
+        <!-- Activity & Submitted Tab -->
+        <div id="activity-tab" class="tab-content active">
+            <div class="section-title">Activity & Submitted Report</div>
+            <div id="activity-content">
+                <div class="loading">Select a team and date range to load activity data</div>
+            </div>
+        </div>
+
+        <!-- YTD Totals Tab -->
+        <div id="ytd-totals-tab" class="tab-content">
+            <div class="section-title">YTD Totals Dashboard</div>
+            <div id="ytd-content">
+                <div class="loading">Select a team and date range to load YTD totals</div>
+            </div>
+        </div>
+
+        <!-- Pipeline Summary Tab -->
+        <div id="pipeline-tab" class="tab-content">
+            <div class="section-title">Pipeline Summary</div>
+            <div id="pipeline-content">
+                <div class="loading">Select a team and date range to load pipeline data</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTeam = null;
+        let currentEndDate = null;
+        let currentStartDate = null;
+        let currentCompany = 'windsor';
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set default dates
+            const today = new Date();
+            const startOfYear = new Date(today.getFullYear(), 0, 1);
+            
+            document.getElementById('endDateSelect').value = today.toISOString().split('T')[0];
+            document.getElementById('startDateSelect').value = startOfYear.toISOString().split('T')[0];
+            
+            loadAvailableTeams();
+        });
+
+        async function loadAvailableTeams() {
+            try {
+                const company = document.getElementById('companySelect').value;
+                currentCompany = company;
+                
+                // Update theme based on company
+                updateCompanyTheme();
+                
+                // Switch company context
+                await fetch('/api/set-company', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ company: company })
+                });
+                
+                const response = await fetch('/api/teams/performance-available');
+                const data = await response.json();
+
+                const teamSelect = document.getElementById('teamSelect');
+                teamSelect.innerHTML = '<option value="">Select a team...</option>';
+
+                if (data.success && data.teams) {
+                    data.teams.forEach(team => {
+                        const option = document.createElement('option');
+                        option.value = team.id;
+                        option.textContent = `${team.name} (${team.member_count} members)`;
+                        teamSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading teams:', error);
+                showError('activity-content', 'Error loading teams: ' + error.message);
+            }
+        }
+
+        function updateCompanyTheme() {
+            if (currentCompany === 'cnc') {
+                document.body.classList.add('cnc-theme');
+            } else {
+                document.body.classList.remove('cnc-theme');
+            }
+        }
+
+        async function loadDashboard() {
+            const teamId = document.getElementById('teamSelect').value;
+            const startDate = document.getElementById('startDateSelect').value;
+            const endDate = document.getElementById('endDateSelect').value;
+
+            if (!teamId) {
+                showError('activity-content', 'Please select a team');
+                return;
+            }
+
+            if (!startDate || !endDate) {
+                showError('activity-content', 'Please select both start and end dates');
+                return;
+            }
+
+            currentTeam = teamId;
+            currentStartDate = startDate;
+            currentEndDate = endDate;
+
+            // Show download button
+            document.getElementById('downloadBtn').style.display = 'inline-block';
+
+            // Load data for active tab
+            const activeTab = document.querySelector('.tab-button.active').textContent.toLowerCase();
+            
+            if (activeTab.includes('activity')) {
+                await loadActivityData();
+            } else if (activeTab.includes('ytd')) {
+                await loadYTDTotals();
+            } else if (activeTab.includes('pipeline')) {
+                await loadPipelineData();  // ✅ ADD THIS LINE
+            }
+        }
+
+        async function loadActivityData() {
+            try {
+                showLoading('activity-content', 'Loading activity data with Calendly integration...');
+                
+                const response = await fetch(`/api/teams/ytd-performance/${currentTeam}?end_date=${currentEndDate}&start_date=${currentStartDate}`);
+                const data = await response.json();
+
+                console.log('Activity data received:', data);
+
+                if (data.success) {
+                    displayActivityData(data);
+                } else {
+                    showError('activity-content', data.error || 'Failed to load activity data');
+                }
+            } catch (error) {
+                showError('activity-content', 'Error loading activity data: ' + error.message);
+            }
+        }
+
+        function displayActivityData(data) {
+            const container = document.getElementById('activity-content');
+            
+            // Check if we have the expected data structure
+            if (!data.monthly_data || data.monthly_data.length === 0) {
+                container.innerHTML = `
+                    <div class="error">
+                        No monthly data found for the selected period.
+                        <br><small>Response: ${JSON.stringify(data, null, 2)}</small>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Calculate totals from monthly_data since that's what your backend returns
+            let totalActivity = 0;
+            let totalSubmitted = 0;
+            
+            data.monthly_data.forEach(month => {
+                if (month.totals) {
+                    totalActivity += month.totals.total_activity || 0;
+                    totalSubmitted += month.totals.submitted_total || 0;
+                }
+            });
+            
+            let html = `
+                <div class="ytd-summary">
+                    <div class="summary-card">
+                        <h4>Team</h4>
+                        <div class="value">${data.team_name || 'Unknown Team'}</div>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Company</h4>
+                        <div class="value">${currentCompany.toUpperCase()}</div>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Period</h4>
+                        <div class="value">${data.date_range ? formatDateRange(data.date_range.start, data.date_range.end) : 'Unknown Period'}</div>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Total Activity</h4>
+                        <div class="value">${totalActivity}</div>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Total Submitted</h4>
+                        <div class="value currency">£${formatNumber(totalSubmitted)}</div>
+                    </div>
+                </div>
+            `;
+
+            // Display monthly breakdown with conditional C&C Apps column
+            data.monthly_data.forEach(month => {
+                html += `
+                    <div class="month-section">
+                        <div class="month-header">${month.month || 'Unknown Month'}</div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Advisor</th>
+                                    <th>Appointments<br>Booked</th>
+                                    <th>Appointments<br>Completed</th>
+                                    <th>Outbound<br>Calls</th>
+                                    <th>Total<br>Activity</th>
+                                    <th>Mortgage<br>Apps</th>
+                                    <th>Insurance<br>Apps</th>
+                                    ${currentCompany === 'cnc' ? '<th>C&C<br>Apps</th>' : ''}
+                                    <th>Insurance<br>Referrals</th>
+                                    <th>Other<br>Referrals</th>
+                                    <th>Submitted<br>Total</th>
+                                    <th>Conversion<br>%</th>
+                                    <th>Target</th>
+                                    <th>Vs Target</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                // Check if month has members
+                if (!month.members || month.members.length === 0) {
+                    const colCount = currentCompany === 'cnc' ? 14 : 13;
+                    html += `
+                        <tr>
+                            <td colspan="${colCount}" style="text-align: center; padding: 20px; color: #7f8c8d;">
+                                No member data for ${month.month}
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    month.members.forEach(member => {
+                        html += `
+                            <tr>
+                                <td style="text-align: left; font-weight: 600;">${member.advisor || 'Unknown'}</td>
+                                <td>${member.appointments_booked || 0}</td>
+                                <td>${member.appointments_completed || 0}</td>
+                                <td>${member.outbound_calls || 0}</td>
+                                <td><strong>${member.total_activity || 0}</strong></td>
+                                <td>${member.mortgage_apps || 0}</td>
+                                <td>${member.insurance_apps || 0}</td>
+                                ${currentCompany === 'cnc' ? `<td>${member.cnc_apps || 0}</td>` : ''}
+                                <td>${member.insurance_referrals || 0}</td>
+                                <td>${member.other_referrals || 0}</td>
+                                <td class="currency">£${formatNumber(member.submitted_total || 0)}</td>
+                                <td>${member.conversion_rate || 0}%</td>
+                                <td>£${formatNumber(member.monthly_target || 0)}</td>
+                                <td class="${(member.vs_target || 0) >= 0 ? 'currency' : 'negative'}">£${formatNumber(member.vs_target || 0)}</td>
+                            </tr>
+                        `;
+                    });
+
+                    // Add totals row if totals exist
+                    if (month.totals) {
+                        const totals = month.totals;
+                        html += `
+                                <tr class="totals-row">
+                                    <td style="text-align: left;"><strong>Totals:</strong></td>
+                                    <td><strong>${totals.appointments_booked || 0}</strong></td>
+                                    <td><strong>${totals.appointments_completed || 0}</strong></td>
+                                    <td><strong>${totals.outbound_calls || 0}</strong></td>
+                                    <td><strong>${totals.total_activity || 0}</strong></td>
+                                    <td><strong>${totals.mortgage_apps || 0}</strong></td>
+                                    <td><strong>${totals.insurance_apps || 0}</strong></td>
+                                    ${currentCompany === 'cnc' ? `<td><strong>${totals.cnc_apps || 0}</strong></td>` : ''}
+                                    <td><strong>${totals.insurance_referrals || 0}</strong></td>
+                                    <td><strong>${totals.other_referrals || 0}</strong></td>
+                                    <td><strong>£${formatNumber(totals.submitted_total || 0)}</strong></td>
+                                    <td><strong>-</strong></td>
+                                    <td><strong>£${formatNumber(totals.monthly_target || 0)}</strong></td>
+                                    <td><strong>-</strong></td>
+                                </tr>
+                        `;
+                    }
+                }
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        async function loadYTDTotals() {
+            try {
+                showLoading('ytd-content', 'Loading YTD totals...');
+                
+                const response = await fetch(`/api/teams/ytd-totals/${currentTeam}?end_date=${currentEndDate}&start_date=${currentStartDate}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    displayYTDTotals(data);
+                } else {
+                    showError('ytd-content', data.error || 'Failed to load YTD totals');
+                }
+            } catch (error) {
+                showError('ytd-content', 'Error loading YTD totals: ' + error.message);
+            }
+        }
+
+        function displayYTDTotals(data) {
+            const container = document.getElementById('ytd-content');
+            
+            let html = `
+                <div class="ytd-summary">
+                    <div class="summary-card">
+                        <h4>Team</h4>
+                        <div class="value">${data.team_name}</div>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Company</h4>
+                        <div class="value">${currentCompany.toUpperCase()}</div>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Period</h4>
+                        <div class="value">${data.date_range ? formatDateRange(data.date_range.start, data.date_range.end) : 'N/A'}</div>
+                    </div>
+                </div>
+            `;
+            
+            if (data.ytd_data && data.ytd_data.total_submitted) {
+                html += `
+                    <div class="section-title">Total Submitted</div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Advisor</th>
+                                <th>Quarter 1</th>
+                                <th>Quarter 2</th>
+                                <th>YTD Total</th>
+                                <th>Target</th>
+                                <th>Vs Target</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                data.ytd_data.total_submitted.forEach(item => {
+                    html += `
+                        <tr>
+                            <td style="text-align: left; font-weight: 600;">${item.advisor}</td>
+                            <td class="currency">£${formatNumber(item.q1 || 0)}</td>
+                            <td class="currency">£${formatNumber(item.q2 || 0)}</td>
+                            <td class="currency"><strong>£${formatNumber(item.ytd_total || 0)}</strong></td>
+                            <td>£${formatNumber(item.target || 0)}</td>
+                            <td class="${(item.vs_target || 0) >= 0 ? 'currency' : 'negative'}">£${formatNumber(item.vs_target || 0)}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                html += `<div class="error">No YTD data available</div>`;
+            }
+            
+            container.innerHTML = html;
+        }
+
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            // Load data for the active tab if team is selected
+            if (currentTeam) {
+                if (tabName === 'activity') {
+                    loadActivityData();
+                } else if (tabName === 'ytd-totals') {
+                    loadYTDTotals();
+                } else if (tabName === 'pipeline') {
+                    loadPipelineData();  // ✅ ADD THIS LINE
+                }
+            }
+        }
+        async function loadPipelineData() {
+            try {
+                showLoading('pipeline-content', 'Loading pipeline summary...');
+                
+                if (!currentTeam || !currentEndDate) {
+                    showError('pipeline-content', 'Please select a team and date first');
+                    return;
+                }
+                
+                // Build API URL
+                let url = `/api/teams/pipeline-summary/${currentTeam}?end_date=${currentEndDate}`;
+                if (currentStartDate) {
+                    url += `&start_date=${currentStartDate}`;
+                }
+                
+                console.log('Loading pipeline data from:', url);
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                console.log('Pipeline API response:', data);
+
+                if (data.success) {
+                    displayPipelineData(data);
+                } else {
+                    showError('pipeline-content', data.error || 'Failed to load pipeline data');
+                }
+            } catch (error) {
+                console.error('Error loading pipeline data:', error);
+                showError('pipeline-content', 'Error loading pipeline data: ' + error.message);
+            }
+        }
+        async function downloadExcel() {
+            if (!currentTeam) {
+                alert('Please select a team first');
+                return;
+            }
+            // Placeholder - will implement when Excel method is ready
+            alert('Excel download not implemented yet');
+        }
+
+        async function testCalendly() {
+            const testBtn = event.target;
+            const originalText = testBtn.textContent;
+            testBtn.textContent = 'Testing...';
+            testBtn.disabled = true;
+
+            try {
+                // Test Calendly connection
+                const debugResponse = await fetch('/api/test/calendly-debug');
+                const debugData = await debugResponse.json();
+
+                // Test available emails
+                const emailsResponse = await fetch('/api/test/calendly-emails');
+                const emailsData = await emailsResponse.json();
+
+                // Show results
+                let message = 'Calendly Test Results:\n\n';
+                message += `Connection: ${debugData.calendly_status || debugData.error || 'Unknown'}\n`;
+                message += `Token: ${debugData.has_token ? '✅ Configured' : '❌ Missing'}\n`;
+                message += `Users: ${debugData.organization_users?.count || 0} found\n`;
+                message += `Recent Events: ${debugData.recent_events?.count || 0} found\n\n`;
+                
+                if (emailsData.success) {
+                    message += `Available Calendly emails:\n`;
+                    emailsData.calendly_users.slice(0, 5).forEach(user => {
+                        message += `• ${user.name} (${user.email}) - ${user.events_count} events\n`;
+                    });
+                } else {
+                    message += `Emails error: ${emailsData.error}`;
+                }
+
+                alert(message);
+
+            } catch (error) {
+                alert('Error testing Calendly: ' + error.message);
+            } finally {
+                testBtn.textContent = originalText;
+                testBtn.disabled = false;
+            }
+        }
+
+        function showLoading(containerId, message = 'Loading...') {
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.innerHTML = `<div class="loading">${message}</div>`;
+            }
+        }
+
+        function showError(containerId, message) {
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.innerHTML = `<div class="error">Error: ${message}</div>`;
+            }
+        }
+
+        function formatNumber(num) {
+            if (num === null || num === undefined || isNaN(num)) {
+                return '0';
+            }
+            return Math.round(parseFloat(num)).toLocaleString('en-GB');
+        }
+
+        function formatDateRange(start, end) {
+            if (!start || !end) return 'Unknown Period';
+            
+            try {
+                const startDate = new Date(start);
+                const endDate = new Date(end);
+                return `${startDate.toLocaleDateString('en-GB')} - ${endDate.toLocaleDateString('en-GB')}`;
+            } catch (e) {
+                return 'Invalid date range';
+            }
+        }
+
+        function displayPipelineData(data) {
+            const container = document.getElementById('pipeline-content');
+            
+            if (!data.pipeline_data || !Array.isArray(data.pipeline_data)) {
+                showError('pipeline-content', 'Invalid pipeline data received');
+                return;
+            }
+            
+            let html = `
+                <div class="ytd-summary">
+                    <div class="summary-card">
+                        <h4>Team</h4>
+                        <div class="value">${data.team_name}</div>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Company</h4>
+                        <div class="value">${currentCompany.toUpperCase()}</div>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Total Cases</h4>
+                        <div class="value">${data.totals ? data.totals.totals : 0}</div>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Date Range</h4>
+                        <div class="value">${data.date_range ? formatDateRange(data.date_range.start, data.date_range.end) : 'N/A'}</div>
+                    </div>
+                </div>
+                
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Advisor/Stage</th>
+                            <th>Started</th>
+                            <th>Fact Find</th>
+                            <th>Recommendation</th>
+                            <th>Submitted</th>
+                            <th>Exchange</th>
+                            <th>Totals</th>
+                            <th>Percent of Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            // Add member rows
+            data.pipeline_data.forEach(item => {
+                html += `
+                    <tr>
+                        <td style="text-align: left; font-weight: 600;">${item.advisor || 'Unknown'}</td>
+                        <td>${item.started || 0}</td>
+                        <td>${item.fact_find || 0}</td>
+                        <td>${item.recommendation || 0}</td>
+                        <td>${item.submitted || 0}</td>
+                        <td>${item.exchange || 0}</td>
+                        <td><strong>${item.totals || 0}</strong></td>
+                        <td>${item.percent_of_total || 0}%</td>
+                    </tr>
+                `;
+            });
+
+            // Add totals row
+            if (data.totals) {
+                html += `
+                    <tr class="totals-row">
+                        <td style="text-align: left;"><strong>Totals:</strong></td>
+                        <td><strong>${data.totals.started || 0}</strong></td>
+                        <td><strong>${data.totals.fact_find || 0}</strong></td>
+                        <td><strong>${data.totals.recommendation || 0}</strong></td>
+                        <td><strong>${data.totals.submitted || 0}</strong></td>
+                        <td><strong>${data.totals.exchange || 0}</strong></td>
+                        <td><strong>${data.totals.totals || 0}</strong></td>
+                        <td><strong>100.0%</strong></td>
+                    </tr>
+                `;
+            }
+
+            html += `</tbody></table>`;
+
+            // Add stage distribution breakdown if available
+            if (data.percent_totals) {
+                html += `
+                    <div class="section-title" style="margin-top: 30px;">Stage Distribution</div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Stage</th>
+                                <th>Count</th>
+                                <th>Percentage</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Started</td>
+                                <td>${data.totals.started || 0}</td>
+                                <td>${data.percent_totals.started || 0}%</td>
+                            </tr>
+                            <tr>
+                                <td>Fact Find</td>
+                                <td>${data.totals.fact_find || 0}</td>
+                                <td>${data.percent_totals.fact_find || 0}%</td>
+                            </tr>
+                            <tr>
+                                <td>Recommendation</td>
+                                <td>${data.totals.recommendation || 0}</td>
+                                <td>${data.percent_totals.recommendation || 0}%</td>
+                            </tr>
+                            <tr>
+                                <td>Submitted</td>
+                                <td>${data.totals.submitted || 0}</td>
+                                <td>${data.percent_totals.submitted || 0}%</td>
+                            </tr>
+                            <tr>
+                                <td>Exchange</td>
+                                <td>${data.totals.exchange || 0}</td>
+                                <td>${data.percent_totals.exchange || 0}%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
+
+    </script>
+</body>
+</html>

@@ -45,13 +45,38 @@ class CalendlyController(BaseController):
             # Add this to your register_routes method in CalendlyController
             self.app.add_url_rule('/api/calendly/host-analytics', 'api.calendly_host_analytics',
                                 self.get_host_events_analytics, methods=['GET'])
+    
+            self.app.add_url_rule('/api/test/calendly-debug', 'api.test_calendly_debug',
+                                self.test_calendly_debug, methods=['GET'])
+
         except Exception as e:
             print(f"❌ Error registering routes: {e}")
             import traceback
             traceback.print_exc()
         
         print("✅ Calendly routes registration complete")
-    
+
+    def test_calendly_debug(self):
+        """Debug Calendly integration"""
+        try:
+            from app.services.calendly_service import CalendlyService
+            calendly_service = CalendlyService()
+            
+            # Test connection
+            connection_test = calendly_service.test_connection()
+            
+            # Get user info
+            user_info = calendly_service.get_user_info()
+            
+            return jsonify({
+                'calendly_connection': connection_test,
+                'user_info': user_info,
+                'token_configured': bool(calendly_service.access_token)
+            })
+            
+        except Exception as e:
+            return jsonify({'error': f'Debug failed: {str(e)}'})
+
     def debug_config(self):
         """Debug configuration loading"""
         import os
@@ -331,9 +356,18 @@ class CalendlyController(BaseController):
             
             # Parse date parameters
             days = request.args.get('days', 30, type=int)
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=days)
+            end_date_str = request.args.get('end_date', datetime.now().strftime('%Y-%m-%d'))
+            start_date_str = request.args.get('start_date')
             
+
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+            
+            # Use provided start_date or default to start of year
+            if start_date_str:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            else:
+                start_date = datetime(end_date.year, 1, 1)  # Default to YTD
+            print(end_date, start_date)
             # Get user-specific analytics
             analytics_data = calendly_service.get_analytics_data_by_user(start_date, end_date)
             
@@ -533,8 +567,17 @@ class CalendlyController(BaseController):
             
             # Parse date parameters
             days = request.args.get('days', 60, type=int)
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=days)
+            end_date_str = request.args.get('end_date', datetime.now().strftime('%Y-%m-%d'))
+            start_date_str = request.args.get('start_date')
+            
+
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+            
+            # Use provided start_date or default to start of year
+            if start_date_str:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            else:
+                start_date = datetime(end_date.year, 1, 1)  # Default to YTD
             
             # Define the hosts you want to track
             host_emails = [
@@ -578,7 +621,7 @@ class CalendlyController(BaseController):
             sorted_hosts = dict(sorted(host_summary.items(), 
                                     key=lambda x: x[1]['completed_events'], 
                                     reverse=True))
-            
+            # print(sorted_hosts)
             return jsonify({
                 'success': True,
                 'message': 'Host analytics based on event ownership (not participation)',
