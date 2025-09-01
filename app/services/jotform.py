@@ -311,24 +311,24 @@ class JotFormService:
             return []
         
         processed_cases = []
-        referral_debug_count = 0
 
         for case in paid_data:
             try:
                 data = case.get("mapped_data", {})
                 
-                advisor_name = self.config.normalize_advisor_name(data.get("advisor_name", ""))
-                case_type = str(data.get("case_type", ""))
-                customer_name = str(data.get("customer_name", "") or "Unknown Customer")
-                income_type = str(data.get("income_type", ""))  # NEW: Get income type
+                # FIXED: Handle None values safely for all string fields
+                advisor_name = self.config.normalize_advisor_name(data.get("advisor_name") or "")
+                case_type = str(data.get("case_type") or "")
+                customer_name = str(data.get("customer_name") or "Unknown Customer")
+                income_type = str(data.get("income_type") or "")
                 
                 # ENHANCED: Extract who_referred field with improved normalization
-                who_referred_raw = data.get("who_referred", "")
+                who_referred_raw = data.get("who_referred")  # Don't convert to string yet
                 who_referred = self._normalize_referrer_name(who_referred_raw)
                 
                 try:
-                    value_raw = data.get("value", "")
-                    if value_raw and value_raw != "No Answer":
+                    value_raw = data.get("value")
+                    if value_raw and str(value_raw) != "No Answer":
                         # Handle negative values properly
                         value_str = str(value_raw).replace('£', '').replace(',', '').strip()
                         value = float(value_str or 0)
@@ -337,9 +337,9 @@ class JotFormService:
                 except (ValueError, TypeError):
                     value = 0
                 
-                date_paid = self._parse_date(data.get("date_paid", ""))
+                date_paid = self._parse_date(data.get("date_paid"))
                 if not date_paid:
-                    date_paid = self._parse_date(case.get("created_at", ""))
+                    date_paid = self._parse_date(case.get("created_at"))
                 
                 # Company-specific filtering
                 if (advisor_name and 
@@ -353,28 +353,40 @@ class JotFormService:
                         'customer_name': customer_name,
                         'date_paid': date_paid or datetime.now().date(),
                         'who_referred': who_referred,
-                        'income_type': income_type,  # NEW: Include income type
+                        'income_type': income_type,
                         'company': self.company,
                         'jotform_id': case.get("submission_id")
                     })
             except Exception as e:
-                print(f"💰 Error processing paid case: {e}")
+                # IMPROVED: Show which field caused the error
+                print(f"💰 Error processing paid case {case.get('submission_id', 'unknown')}: {e}")
+                
+                # DEBUG: Show the problematic data
+                if hasattr(e, '__class__') and 'NoneType' in str(e):
+                    print(f"   Debug - Raw data: {case.get('mapped_data', {})}")
                 continue
         
         print(f"💰 Successfully processed {len(processed_cases)} valid paid cases for {self.company}")
         return processed_cases
-    
+
     def _normalize_referrer_name(self, who_referred_raw):
         """
         ENHANCED: Normalize the referrer name using company mappings
-        This fixes the Mike vs Michael issue
+        FIXED: Handle None values properly
         """
+        # FIXED: Check for None first before any string operations
         if who_referred_raw is None:
             return None
         
-        who_referred_clean = str(who_referred_raw).strip()
+        # FIXED: Convert to string safely and strip
+        try:
+            who_referred_clean = str(who_referred_raw).strip()
+        except (AttributeError, TypeError):
+            # Handle edge cases where conversion fails
+            return None
         
-        if not who_referred_clean or who_referred_clean.lower() in ["no answer", "none", ""]:
+        # Check for empty or "no answer" values
+        if not who_referred_clean or who_referred_clean.lower() in ["no answer", "none", "", "null"]:
             return None
         
         # Use company config to normalize the name
