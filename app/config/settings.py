@@ -26,7 +26,7 @@ class ConfigurationManager:
         """Initialize application-wide configuration"""
         return {
             # Existing JotForm config
-            'JOTFORM_API_KEY': os.getenv('JOTFORM_API_KEY', 'b78b083ca0a78392acf8de69666a3577'),
+            'JOTFORM_API_KEY': os.getenv('JOTFORM_API_KEY', '6aa5460625d72bc50847166d93099640'),
             'SUBMISSION_FORM_ID': "250232251408041",
             'PAID_FORM_ID': "251406545360048",
             'BASE_URL': "https://eu-api.jotform.com",

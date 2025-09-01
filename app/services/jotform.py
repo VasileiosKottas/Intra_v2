@@ -1,8 +1,10 @@
 """
 Enhanced JotForm API integration service with income_type field and improved name matching
+FIXED: Uses query parameter authentication like the working curl command
 """
 
 import requests
+import time
 from datetime import datetime
 from typing import List, Dict, Optional
 from app.config import config_manager
@@ -13,14 +15,17 @@ class JotFormService:
     def __init__(self, company: str):
         self.company = company
         self.config = config_manager.get_company_config(company)
+        
+        # Get API key from config
         self.api_key = config_manager.get_app_config('JOTFORM_API_KEY')
         self.base_url = config_manager.get_app_config('BASE_URL')
         self.submission_form_id = config_manager.get_app_config('SUBMISSION_FORM_ID')
         self.paid_form_id = config_manager.get_app_config('PAID_FORM_ID')
         
+        # FIXED: Remove APIKEY header - we'll use query parameters instead
         self.headers = {
-            "APIKEY": self.api_key,
-            "Content-Type": "application/x-www-form-urlencoded"
+            "Content-Type": "application/json",
+            "User-Agent": "PythonJotFormClient/1.0"
         }
         
         # Field mappings
@@ -42,18 +47,84 @@ class JotFormService:
             'date_paid': '13',
             'income_type': '6'  # NEW: Add income_type to paid cases too
         }
+
+        # Rate limiting
+        self.last_request_time = 0
+        self.min_request_interval = 2.0  # 2 seconds between requests
+        self.max_retries = 3
+        
+    def _wait_for_rate_limit(self):
+        """Ensure we don't exceed rate limits"""
+        current_time = time.time()
+        time_since_last_request = current_time - self.last_request_time
+        
+        if time_since_last_request < self.min_request_interval:
+            sleep_time = self.min_request_interval - time_since_last_request
+            print(f"⏳ Rate limiting: waiting {sleep_time:.1f} seconds...")
+            time.sleep(sleep_time)
+        
+        self.last_request_time = time.time()
     
-    def _make_request(self, endpoint: str, params: Optional[Dict] = None) -> Optional[Dict]:
-        """Make a request to the JotForm API"""
+    def _make_request(self, endpoint: str, additional_params: Optional[Dict] = None) -> Optional[Dict]:
+        """FIXED: Make request using query parameter authentication (like working curl)"""
         url = f"{self.base_url}{endpoint}"
         
-        try:
-            response = requests.get(url, headers=self.headers, params=params)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            print(f" API request failed: {str(e)}")
-            return None
+        for attempt in range(self.max_retries):
+            try:
+                # Wait for rate limit
+                self._wait_for_rate_limit()
+                
+                # FIXED: Use query parameter authentication (like curl)
+                params = {
+                    "apiKey": self.api_key  # This matches your working curl: ?apiKey={apiKey}
+                }
+                
+                # Add any additional parameters
+                if additional_params:
+                    params.update(additional_params)
+                
+                print(f"🔄 Making API request (attempt {attempt + 1}/{self.max_retries}): {endpoint}")
+                print(f"📡 URL: {url}")
+                print(f"📋 Params: {list(params.keys())}")  # Don't print API key value
+                
+                # FIXED: No headers authentication, use params instead
+                response = requests.get(url, headers=self.headers, params=params, timeout=30)
+                
+                print(f"📊 Status: {response.status_code}")
+                
+                # Handle rate limiting specifically
+                if response.status_code == 429:
+                    retry_after = int(response.headers.get('Retry-After', 60))
+                    print(f"⚠️ Rate limit hit! Waiting {retry_after} seconds before retry...")
+                    time.sleep(retry_after)
+                    continue
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    # Show API limit info if available
+                    if isinstance(data, dict) and 'limit-left' in data:
+                        print(f"🔋 API calls remaining: {data['limit-left']}")
+                    
+                    return data
+                else:
+                    print(f"❌ Error {response.status_code}: {response.text}")
+                    if attempt == self.max_retries - 1:
+                        return None
+                
+            except requests.exceptions.RequestException as e:
+                print(f"❌ API request failed (attempt {attempt + 1}): {str(e)}")
+                
+                if attempt == self.max_retries - 1:
+                    print(f"💥 All {self.max_retries} attempts failed")
+                    return None
+                
+                # Exponential backoff for retries
+                wait_time = (2 ** attempt) * 5  # 5, 10, 20 seconds
+                print(f"⏳ Waiting {wait_time} seconds before retry...")
+                time.sleep(wait_time)
+        
+        return None
     
     def _parse_date(self, date_string) -> Optional[datetime.date]:
         """Parse date from JotForm format to date object"""
@@ -83,22 +154,32 @@ class JotFormService:
             
             return None
         except Exception as e:
-            print(f" Error parsing date '{date_string}': {e}")
+            print(f"⚠️ Error parsing date '{date_string}': {e}")
             return None
     
-    def get_form_submissions_with_mapping(self, form_id: str, field_map: Dict, limit: int = 1000) -> List[Dict]:
-        """Get form submissions using exact field mappings"""
-        print(f" Fetching submissions for form {form_id} (Company: {self.company})...")
+    def get_form_submissions_with_mapping(self, form_id: str, field_map: Dict, limit: int = 100) -> List[Dict]:
+        """Get form submissions using exact field mappings with rate limiting"""
+        print(f"📋 Fetching submissions for form {form_id} (Company: {self.company})...")
         
         endpoint = f"/form/{form_id}/submissions"
-        params = {"limit": limit}
-        response = self._make_request(endpoint, params)
+        additional_params = {
+            "limit": limit,
+            "orderby": "created_at"  # Add ordering for consistency
+        }
+        
+        response = self._make_request(endpoint, additional_params)
         
         if not response:
+            print("❌ Failed to get response from JotForm API")
+            return []
+        
+        # Handle JotForm response format
+        if response.get('responseCode') != 200:
+            print(f"❌ JotForm API error: {response.get('message', 'Unknown error')}")
             return []
         
         submissions = response.get("content", [])
-        print(f" Retrieved {len(submissions)} raw submissions")
+        print(f"✅ Retrieved {len(submissions)} raw submissions")
         
         parsed_submissions = []
         
@@ -127,9 +208,28 @@ class JotFormService:
         
         return parsed_submissions
     
+    def test_connection(self) -> bool:
+        """Test the API connection"""
+        print("🧪 Testing JotForm API connection...")
+        
+        # Test getting form info (like your working curl)
+        endpoint = f"/form/{self.submission_form_id}"
+        result = self._make_request(endpoint)
+        
+        if result and result.get('responseCode') == 200:
+            content = result.get('content', {})
+            print(f"✅ Form: {content.get('title', 'Unknown')}")
+            print(f"✅ Status: {content.get('status', 'Unknown')}")
+            print(f"✅ Total submissions: {content.get('count', 'Unknown')}")
+            print(f"✅ Last submission: {content.get('last_submission', 'Unknown')}")
+            return True
+        else:
+            print("❌ Connection test failed")
+            return False
+    
     def process_submissions(self) -> List[Dict]:
         """Process submissions with company-specific filtering"""
-        print(f" Processing submissions from JotForm for {self.company}...")
+        print(f"📄 Processing submissions from JotForm for {self.company}...")
         
         submissions_data = self.get_form_submissions_with_mapping(
             self.submission_form_id, 
@@ -137,7 +237,7 @@ class JotFormService:
         )
         
         if not submissions_data:
-            print(" No submissions data retrieved")
+            print("📄 No submissions data retrieved")
             return []
         
         processed_submissions = []
@@ -191,15 +291,15 @@ class JotFormService:
                     })
                     
             except Exception as e:
-                print(f" Error processing submission: {e}")
+                print(f"📄 Error processing submission: {e}")
                 continue
         
-        print(f" Successfully processed {len(processed_submissions)} valid submissions for {self.company}")
+        print(f"📄 Successfully processed {len(processed_submissions)} valid submissions for {self.company}")
         return processed_submissions
 
     def process_paid_cases(self) -> List[Dict]:
         """Process paid cases with company-specific filtering and enhanced name matching"""
-        print(f" Processing paid cases from JotForm for {self.company}...")
+        print(f"💰 Processing paid cases from JotForm for {self.company}...")
         
         paid_data = self.get_form_submissions_with_mapping(
             self.paid_form_id, 
@@ -207,7 +307,7 @@ class JotFormService:
         )
         
         if not paid_data:
-            print(" No paid cases data retrieved")
+            print("💰 No paid cases data retrieved")
             return []
         
         processed_cases = []
@@ -258,10 +358,10 @@ class JotFormService:
                         'jotform_id': case.get("submission_id")
                     })
             except Exception as e:
-                print(f" Error processing paid case: {e}")
+                print(f"💰 Error processing paid case: {e}")
                 continue
         
-        print(f" Successfully processed {len(processed_cases)} valid paid cases for {self.company}")
+        print(f"💰 Successfully processed {len(processed_cases)} valid paid cases for {self.company}")
         return processed_cases
     
     def _normalize_referrer_name(self, who_referred_raw):

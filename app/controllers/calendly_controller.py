@@ -46,9 +46,6 @@ class CalendlyController(BaseController):
             self.app.add_url_rule('/api/calendly/host-analytics', 'api.calendly_host_analytics',
                                 self.get_host_events_analytics, methods=['GET'])
     
-            self.app.add_url_rule('/api/test/calendly-debug', 'api.test_calendly_debug',
-                                self.test_calendly_debug, methods=['GET'])
-
         except Exception as e:
             print(f"❌ Error registering routes: {e}")
             import traceback
