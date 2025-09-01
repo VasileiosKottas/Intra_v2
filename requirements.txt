@@ -7,3 +7,5 @@ schedule==1.2.0
 python-dotenv==1.0.0
 gunicorn==21.2.0
 psycopg2-binary==2.9.7
+xlwings==0.33.15
+openpyxl==3.1.5
