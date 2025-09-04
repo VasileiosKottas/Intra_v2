@@ -112,10 +112,9 @@ class ReportService:
         first = advisor_name_lower.split()[0] if advisor_name_lower else ""
         return bool(first and first in referral_to_lower)
 
-    # --- inside ReportService class (main builder) ---
     def generate_team_monthly_table(self, team_id: int):
         """
-        Build the screenshot-style monthly team report using ONLY team data.
+        Build the screenshot-style monthly team report using ONLY team data - ENHANCED referral handling.
         Columns:
           Advisor | Mortgage Apps | Insurance Apps | Insurance Referral | Other Referrals |
           Conversion | Fees | Submitted | Total | Target | Vs Target
@@ -128,7 +127,6 @@ class ReportService:
 
         # Current month bounds (inclusive)
         start_date, end_date = DateService.get_current_month_dates()
-
 
         rows = []
         totals = {
@@ -146,30 +144,40 @@ class ReportService:
             m = advisor.calculate_metrics_for_period(
                 company, start_date, end_date,
                 valid_submission_types, valid_paid_types
-            )  # uses your Advisor model logic :contentReference[oaicite:0]{index=0}
+            )
 
             apps = m.get('applications', {}) or {}
             # Robust app split based on business type labels in your config
             mortgage_apps  = sum(v for k, v in apps.items() if self._is_mortgage_key(k))
             insurance_apps = sum(v for k, v in apps.items() if self._is_insurance_key(k))
-            print(apps.items())
-            # Referrals: keep your current logic for incoming insurance referrals
-            all_subs = advisor.get_submissions_for_period(company, start_date, end_date, None)  # :contentReference[oaicite:1]{index=1}
+
+            # ENHANCED: Referrals using new original_business_type field
+            all_subs = advisor.get_submissions_for_period(company, start_date, end_date, None)
             referrals = [s for s in all_subs if (s.business_type or "").lower() == "referral"]
             ins_ref, other_ref = 0, 0
+            
             if referrals:
-                from app.models.advisor import Advisor as AdvisorModel
-                insurance_recipient_ids = {r.advisor_id for r in ReferralRecipient.get_recipients_for_company(company)}  # 
                 for r in referrals:
-                    matched_insurance = False
-                    if r.referral_to and insurance_recipient_ids:
-                        for rid in insurance_recipient_ids:
-                            rec = db.session.get(AdvisorModel, rid)
-                            if rec and self._loosely_matches(r.referral_to, rec.full_name):
-                                matched_insurance = True
-                                break
-                    ins_ref += 1 if matched_insurance else 0
-                    other_ref += 0 if matched_insurance else 1
+                    # Use original_business_type if available (new field), otherwise use business_type
+                    original_type = getattr(r, 'original_business_type', None)
+                    if original_type:
+                        original_type = original_type.lower()
+                    else:
+                        original_type = (r.business_type or '').lower()
+                    
+                    referral_to = (r.referral_to or '').lower()
+                    
+                    # Check if it's an insurance referral
+                    if ('insurance' in referral_to or 'protection' in referral_to or 
+                        'insurance' in original_type or 'protection' in original_type):
+                        ins_ref += 1
+                    # Check if it's conveyancing or survey referral (for "Other Referrals" column)
+                    elif (any(keyword in original_type for keyword in ['conveyancing', 'survey', 'conveyance']) or
+                          any(keyword in referral_to for keyword in ['conveyancing', 'survey', 'conveyance'])):
+                        other_ref += 1
+                    else:
+                        # Default: count as other referral if not insurance
+                        other_ref += 1
 
             # 2) Fees & Submitted (proc) from metrics (aligns with dashboard)
             total_fee = float(m.get('total_fee', 0.0))
@@ -178,7 +186,7 @@ class ReportService:
 
             total = submitted_proc + total_fee
 
-            # Target from advisor's company goal (team goal supported) :contentReference[oaicite:3]{index=3}
+            # Target from advisor's company goal
             yearly = float(advisor.get_yearly_goal_for_company(company) or 0.0)
             monthly_target = yearly / 12.0
             vs_target = total - monthly_target
@@ -208,7 +216,7 @@ class ReportService:
             totals['Total']             += total
             totals['Target']            += monthly_target
             totals['Vs Target']         += vs_target
-        print(totals)
+
         rows.append({
             "Advisor": "Totals:",
             "Mortgage Apps": totals['Mortgage Apps'],
@@ -222,7 +230,7 @@ class ReportService:
             "Target": round(totals['Target'], 2),
             "Vs Target": round(totals['Vs Target'], 2),
         })
-        print(rows)
+
         return {
             "team": {"id": team.id, "name": team.name, "company": team.company},
             "period": {"start": start_date.isoformat(), "end": end_date.isoformat()},

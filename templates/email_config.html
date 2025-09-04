@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Report Configuration - Sales Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #f093fb;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --dark-color: #2c3e50;
+            --light-color: #ecf0f1;
+            --border-radius: 12px;
+            --shadow: 0 4px 20px rgba(0,0,0,0.1);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--dark-color);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .teams-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+        }
+
+        .sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-card {
+            background: var(--light-color);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            border: 2px solid transparent;
+            transition: var(--transition);
+        }
+
+        .status-card.running {
+            border-color: var(--success-color);
+            background: rgba(46, 204, 113, 0.1);
+        }
+
+        .status-card.stopped {
+            border-color: var(--danger-color);
+            background: rgba(231, 76, 60, 0.1);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.running {
+            background: var(--success-color);
+        }
+
+        .status-dot.stopped {
+            background: var(--danger-color);
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: white;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .btn-success {
+            background: var(--success-color);
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+        }
+
+        .btn-warning {
+            background: var(--warning-color);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .team-card {
+            background: white;
+            border: 2px solid #eee;
+            border-radius: var(--border-radius);
+            padding: 25px;
+            margin-bottom: 20px;
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .team-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow);
+        }
+
+        .team-card.email-enabled {
+            border-color: var(--success-color);
+            background: rgba(46, 204, 113, 0.02);
+        }
+
+        .team-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .team-info h3 {
+            color: var(--primary-color);
+            font-size: 1.3rem;
+            margin-bottom: 5px;
+        }
+
+        .team-meta {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .email-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+
+        .email-status.enabled {
+            background: rgba(46, 204, 113, 0.1);
+            color: var(--success-color);
+        }
+
+        .email-status.disabled {
+            background: rgba(149, 165, 166, 0.1);
+            color: #95a5a6;
+        }
+
+        .team-config {
+            display: none;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .team-config.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--dark-color);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--primary-color);
+        }
+
+        .time-day-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .config-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .expand-btn {
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 5px;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+
+        .expand-btn:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .expand-btn.active {
+            transform: rotate(180deg);
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: var(--transition);
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.success {
+            background: var(--success-color);
+        }
+
+        .toast.error {
+            background: var(--danger-color);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            color: #ddd;
+            margin-bottom: 20px;
+        }
+
+        /* Company Theme Support (like YTD dashboard) */
+        .cnc-theme {
+            --primary-color: #e17055;
+            --secondary-color: #fdcb6e;
+        }
+
+        .cnc-theme .header {
+            background: linear-gradient(135deg, #e17055 0%, #fdcb6e 100%);
+        }
+
+        .cnc-theme .btn-primary {
+            background: linear-gradient(45deg, #e17055, #fdcb6e);
+        }
+
+        .cnc-theme .team-card.email-enabled {
+            border-color: #e17055;
+            background: rgba(225, 112, 85, 0.02);
+        }
+
+        .cnc-theme .email-status.enabled {
+            background: rgba(225, 112, 85, 0.1);
+            color: #e17055;
+        }
+
+        .cnc-theme .form-control:focus {
+            border-color: #e17055;
+            box-shadow: 0 0 0 3px rgba(225, 112, 85, 0.1);
+        }
+
+        .cnc-theme .expand-btn:hover {
+            background: rgba(225, 112, 85, 0.1);
+        }
+
+        .team-activity {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .company-selector {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .company-selector select {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1><i class="fas fa-envelope-open-text"></i> Monthly Email Report Configuration</h1>
+            <p>Configure automated monthly team performance reports</p>
+            
+            <!-- Company Selection (like YTD dashboard) -->
+            <div class="company-selector" style="margin-top: 20px;">
+                <label for="companySelect" style="color: white; margin-right: 10px;">Company:</label>
+                <select id="companySelect" style="padding: 8px; border-radius: 6px; border: none; background: white; color: #333;">
+                    <option value="windsor">Windsor Hill Mortgages</option>
+                    <option value="cnc">Cornwall & Crowe</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- Teams Section -->
+            <div class="teams-section">
+                <h2 class="section-title">
+                    <i class="fas fa-users"></i>
+                    Team Email Settings
+                </h2>
+
+                <div id="loading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading team configurations...</p>
+                </div>
+
+                <div id="teams-container">
+                    <!-- Teams will be loaded here -->
+                </div>
+
+                <div id="empty-state" class="empty-state" style="display: none;">
+                    <i class="fas fa-inbox"></i>
+                    <h3>No Teams Found</h3>
+                    <p>No teams are available for email configuration.</p>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Scheduler Status -->
+                <div class="section-title">
+                    <i class="fas fa-clock"></i>
+                    Scheduler Status
+                </div>
+
+                <div id="scheduler-status" class="status-card">
+                    <div class="status-indicator">
+                        <div class="status-dot stopped" id="status-dot"></div>
+                        <span id="status-text">Loading...</span>
+                    </div>
+                    <div id="status-details"></div>
+                    <div class="control-buttons">
+                        <button id="start-scheduler" class="btn btn-success">
+                            <i class="fas fa-play"></i> Start
+                        </button>
+                        <button id="stop-scheduler" class="btn btn-danger">
+                            <i class="fas fa-stop"></i> Stop
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Email Service Status -->
+                <div class="section-title">
+                    <i class="fas fa-envelope"></i>
+                    Email Service
+                </div>
+
+                <div id="email-service-status" class="status-card">
+                    <div id="email-status-content">
+                        <p>Checking email service status...</p>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="section-title">
+                    <i class="fas fa-bolt"></i>
+                    Quick Actions
+                </div>
+
+                <button id="refresh-data" class="btn btn-primary" style="width: 100%; margin-bottom: 10px;">
+                    <i class="fas fa-sync-alt"></i> Refresh Data
+                </button>
+
+                <a href="/master" class="btn btn-primary" style="width: 100%;">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let teams = [];
+        let schedulerStatus = {};
+        let currentCompany = 'windsor'; // Default company
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            loadInitialCompany();
+        });
+
+        function setupEventListeners() {
+            // Company selection (like YTD dashboard)
+            const companySelect = document.getElementById('companySelect');
+            if (companySelect) {
+                companySelect.addEventListener('change', handleCompanyChange);
+            }
+            
+            // Scheduler controls
+            document.getElementById('start-scheduler').addEventListener('click', startScheduler);
+            document.getElementById('stop-scheduler').addEventListener('click', stopScheduler);
+            
+            // Refresh button
+            document.getElementById('refresh-data').addEventListener('click', loadData);
+        }
+
+        async function loadInitialCompany() {
+            // Load current company like YTD dashboard does
+            try {
+                const response = await fetch('/api/current-company');
+                const data = await response.json();
+                if (data.company) {
+                    currentCompany = data.company;
+                    document.getElementById('companySelect').value = currentCompany;
+                    updateCompanyTheme();
+                }
+            } catch (error) {
+                console.log('Using default company');
+            }
+            
+            loadData();
+        }
+
+        async function handleCompanyChange() {
+            const newCompany = document.getElementById('companySelect').value;
+            
+            try {
+                // Switch company context like YTD dashboard
+                await fetch('/api/set-company', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ company: newCompany })
+                });
+                
+                currentCompany = newCompany;
+                updateCompanyTheme();
+                loadData(); // Reload data for new company
+                
+            } catch (error) {
+                console.error('Error switching company:', error);
+                showToast('Error switching company', 'error');
+            }
+        }
+
+        function updateCompanyTheme() {
+            // Apply company-specific styling like YTD dashboard
+            if (currentCompany === 'cnc') {
+                document.body.classList.add('cnc-theme');
+            } else {
+                document.body.classList.remove('cnc-theme');
+            }
+        }
+
+        async function loadData() {
+            showLoading(true);
+            
+            try {
+                // Load teams and scheduler status
+                const response = await fetch('/api/email-config/teams');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    teams = data.teams;
+                    schedulerStatus = data.scheduler_status;
+                    
+                    renderTeams();
+                    updateSchedulerStatus();
+                } else {
+                    showToast('Error loading data: ' + (data.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                console.error('Error loading data:', error);
+                showToast('Failed to load configuration data', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+            document.getElementById('teams-container').style.display = show ? 'none' : 'block';
+        }
+
+        function renderTeams() {
+            const container = document.getElementById('teams-container');
+            const emptyState = document.getElementById('empty-state');
+            
+            if (teams.length === 0) {
+                container.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+            
+            container.style.display = 'block';
+            emptyState.style.display = 'none';
+            
+            container.innerHTML = teams.map(team => createTeamCard(team)).join('');
+            
+            // Attach event listeners to team cards
+            teams.forEach(team => {
+                const expandBtn = document.getElementById(`expand-${team.team_id}`);
+                const configDiv = document.getElementById(`config-${team.team_id}`);
+                const saveBtn = document.getElementById(`save-${team.team_id}`);
+                const testBtn = document.getElementById(`test-${team.team_id}`);
+                
+                if (expandBtn) {
+                    expandBtn.addEventListener('click', () => toggleTeamConfig(team.team_id));
+                }
+                
+                if (saveBtn) {
+                    saveBtn.addEventListener('click', () => saveTeamConfig(team.team_id));
+                }
+                
+                if (testBtn) {
+                    testBtn.addEventListener('click', () => sendTestEmail(team.team_id));
+                }
+            });
+        }
+
+        function createTeamCard(team) {
+            const isEnabled = team.email_enabled;
+            const recipients = Array.isArray(team.recipient_emails) ? team.recipient_emails.join(', ') : team.recipient_emails;
+            const hasData = team.has_submissions;
+            const lastActivity = team.last_activity;
+            
+            return `
+                <div class="team-card ${isEnabled ? 'email-enabled' : ''}" data-team-id="${team.team_id}">
+                    <div class="team-header">
+                        <div class="team-info">
+                            <h3>${team.team_name}</h3>
+                            <div class="team-meta">
+                                ${team.member_count} members • £${team.monthly_goal.toLocaleString()} monthly goal
+                                ${team.company ? `• ${team.company.toUpperCase()}` : ''}
+                                ${team.is_hidden ? ' • <span style="color: #f39c12;">Hidden Team</span>' : ''}
+                            </div>
+                            <div class="team-activity" style="font-size: 0.8rem; color: #666; margin-top: 5px;">
+                                ${hasData ? 
+                                    `<i class="fas fa-check-circle" style="color: #28a745;"></i> Active data` : 
+                                    `<i class="fas fa-exclamation-triangle" style="color: #ffc107;"></i> No recent activity`
+                                }
+                                ${lastActivity ? ` • Last: ${lastActivity}` : ''}
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div class="email-status ${isEnabled ? 'enabled' : 'disabled'}">
+                                <i class="fas fa-${isEnabled ? 'check-circle' : 'times-circle'}"></i>
+                                ${isEnabled ? 'Email Enabled' : 'Email Disabled'}
+                            </div>
+                            <button class="expand-btn" id="expand-${team.team_id}">
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="team-config" id="config-${team.team_id}">
+                        <form id="form-${team.team_id}">
+                            <div class="form-group">
+                                <div class="checkbox-group">
+                                    <input type="checkbox" id="enabled-${team.team_id}" 
+                                           ${isEnabled ? 'checked' : ''}>
+                                    <label for="enabled-${team.team_id}">Enable automated monthly reports</label>
+                                </div>
+                                <small style="color: #666; font-size: 0.85rem; margin-top: 5px; display: block;">
+                                    Monthly reports are sent automatically on your chosen day each month
+                                </small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="sender-${team.team_id}">Sender Email Address</label>
+                                <input type="email" class="form-control" id="sender-${team.team_id}" 
+                                       value="${team.sender_email || ''}" 
+                                       placeholder="reports@yourcompany.com">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="recipients-${team.team_id}">Recipient Email Addresses</label>
+                                <input type="text" class="form-control" id="recipients-${team.team_id}" 
+                                       value="${recipients || ''}" 
+                                       placeholder="team@company.com, manager@company.com">
+                                <small style="color: #666; font-size: 0.8rem;">Separate multiple emails with commas</small>
+                            </div>
+                            
+                            <div class="time-day-group">
+                                <div class="form-group">
+                                    <label for="day-${team.team_id}">Send Day</label>
+                                    <select class="form-control" id="day-${team.team_id}">
+                                        <option value="monday" ${team.send_day === 'monday' ? 'selected' : ''}>Monday</option>
+                                        <option value="tuesday" ${team.send_day === 'tuesday' ? 'selected' : ''}>Tuesday</option>
+                                        <option value="wednesday" ${team.send_day === 'wednesday' ? 'selected' : ''}>Wednesday</option>
+                                        <option value="thursday" ${team.send_day === 'thursday' ? 'selected' : ''}>Thursday</option>
+                                        <option value="friday" ${team.send_day === 'friday' ? 'selected' : ''}>Friday</option>
+                                        <option value="saturday" ${team.send_day === 'saturday' ? 'selected' : ''}>Saturday</option>
+                                        <option value="sunday" ${team.send_day === 'sunday' ? 'selected' : ''}>Sunday</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="time-${team.team_id}">Send Time</label>
+                                    <input type="time" class="form-control" id="time-${team.team_id}" 
+                                           value="${team.send_time || '09:00'}">
+                                </div>
+                            </div>
+                            
+                            <div class="config-actions">
+                                <button type="button" class="btn btn-warning" id="test-${team.team_id}" 
+                                        ${!hasData ? 'title="No recent data available for this team"' : ''}>
+                                    <i class="fas fa-paper-plane"></i> Send Test
+                                </button>
+                                <button type="button" class="btn btn-success" id="save-${team.team_id}">
+                                    <i class="fas fa-save"></i> Save Configuration
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleTeamConfig(teamId) {
+            const configDiv = document.getElementById(`config-${teamId}`);
+            const expandBtn = document.getElementById(`expand-${teamId}`);
+            
+            configDiv.classList.toggle('active');
+            expandBtn.classList.toggle('active');
+        }
+
+        async function saveTeamConfig(teamId) {
+            const form = document.getElementById(`form-${teamId}`);
+            const saveBtn = document.getElementById(`save-${teamId}`);
+            
+            const originalText = saveBtn.textContent;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            saveBtn.disabled = true;
+            
+            try {
+                const config = {
+                    enabled: document.getElementById(`enabled-${teamId}`).checked,
+                    sender_email: document.getElementById(`sender-${teamId}`).value,
+                    recipient_emails: document.getElementById(`recipients-${teamId}`).value,
+                    send_day: document.getElementById(`day-${teamId}`).value,
+                    send_time: document.getElementById(`time-${teamId}`).value
+                };
+                
+                const response = await fetch(`/api/email-config/team/${teamId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(config)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showToast(result.message, 'success');
+                    loadData(); // Refresh data
+                } else {
+                    showToast(result.error || 'Failed to save configuration', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving config:', error);
+                showToast('Failed to save configuration', 'error');
+            } finally {
+                saveBtn.innerHTML = originalText;
+                saveBtn.disabled = false;
+            }
+        }
+
+        async function sendTestEmail(teamId) {
+            const testBtn = document.getElementById(`test-${teamId}`);
+            const originalText = testBtn.textContent;
+            
+            testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+            testBtn.disabled = true;
+            
+            try {
+                const response = await fetch(`/api/email-config/test/${teamId}`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    showToast(result.message, 'success');
+                } else {
+                    showToast(result.message || 'Failed to send test email', 'error');
+                }
+            } catch (error) {
+                console.error('Error sending test email:', error);
+                showToast('Failed to send test email', 'error');
+            } finally {
+                testBtn.innerHTML = originalText;
+                testBtn.disabled = false;
+            }
+        }
+
+        function updateSchedulerStatus() {
+            const statusCard = document.getElementById('scheduler-status');
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+            const statusDetails = document.getElementById('status-details');
+            const startBtn = document.getElementById('start-scheduler');
+            const stopBtn = document.getElementById('stop-scheduler');
+            
+            const isRunning = schedulerStatus.is_running;
+            const hasEmailService = schedulerStatus.email_service_available;
+            
+            // Update status indicator
+            statusDot.className = `status-dot ${isRunning ? 'running' : 'stopped'}`;
+            statusText.textContent = isRunning ? 'Running' : 'Stopped';
+            statusCard.className = `status-card ${isRunning ? 'running' : 'stopped'}`;
+            
+            // Update buttons
+            startBtn.disabled = isRunning || !hasEmailService;
+            stopBtn.disabled = !isRunning;
+            
+            // Update details
+            statusDetails.innerHTML = `
+                <p><strong>Configured Teams:</strong> ${schedulerStatus.configured_teams}</p>
+                <p><strong>Active Schedules:</strong> ${schedulerStatus.active_schedules}</p>
+                <p><strong>Email Service:</strong> ${hasEmailService ? '✅ Available' : '❌ Not Available'}</p>
+            `;
+            
+            // Update email service status
+            const emailStatusContent = document.getElementById('email-status-content');
+            emailStatusContent.innerHTML = `
+                <div class="status-indicator">
+                    <div class="status-dot ${hasEmailService ? 'running' : 'stopped'}"></div>
+                    <span>${hasEmailService ? 'Connected' : 'Not Available'}</span>
+                </div>
+                    <p style="margin-top: 10px; font-size: 0.9rem; color: #666;">
+                        ${hasEmailService ? 
+                            'SMTP email service is configured and ready to send emails.' : 
+                            'Configure SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, and SMTP_PASSWORD environment variables.'
+                        }
+                    </p>
+            `;
+        }
+
+        async function startScheduler() {
+            const startBtn = document.getElementById('start-scheduler');
+            const originalText = startBtn.textContent;
+            
+            startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
+            startBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/email-config/scheduler/start', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showToast(result.message, 'success');
+                    loadData(); // Refresh status
+                } else {
+                    showToast(result.error || 'Failed to start scheduler', 'error');
+                }
+            } catch (error) {
+                console.error('Error starting scheduler:', error);
+                showToast('Failed to start scheduler', 'error');
+            } finally {
+                startBtn.innerHTML = originalText;
+                startBtn.disabled = false;
+            }
+        }
+
+        async function stopScheduler() {
+            const stopBtn = document.getElementById('stop-scheduler');
+            const originalText = stopBtn.textContent;
+            
+            stopBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping...';
+            stopBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/email-config/scheduler/stop', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showToast(result.message, 'success');
+                    loadData(); // Refresh status
+                } else {
+                    showToast(result.error || 'Failed to stop scheduler', 'error');
+                }
+            } catch (error) {
+                console.error('Error stopping scheduler:', error);
+                showToast('Failed to stop scheduler', 'error');
+            } finally {
+                stopBtn.innerHTML = originalText;
+                stopBtn.disabled = false;
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            // Remove existing toast
+            const existingToast = document.querySelector('.toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+            
+            // Create new toast
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+                ${message}
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Show toast
+            setTimeout(() => toast.classList.add('show'), 100);
+            
+            // Hide toast after 4 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // Auto-refresh every 30 seconds to keep status updated
+        setInterval(() => {
+            loadData();
+        }, 30000);
+    </script>
+</body>
+</html>

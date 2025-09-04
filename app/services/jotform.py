@@ -157,14 +157,14 @@ class JotFormService:
             print(f"⚠️ Error parsing date '{date_string}': {e}")
             return None
     
-    def get_form_submissions_with_mapping(self, form_id: str, field_map: Dict, limit: int = 100) -> List[Dict]:
+    def get_form_submissions_with_mapping(self, form_id: str, field_map: Dict, limit: int = 1000) -> List[Dict]:
         """Get form submissions using exact field mappings with rate limiting"""
         print(f"📋 Fetching submissions for form {form_id} (Company: {self.company})...")
         
         endpoint = f"/form/{form_id}/submissions"
         additional_params = {
             "limit": limit,
-            "orderby": "created_at"  # Add ordering for consistency
+            "orderby": "submission_date"  # Add ordering for consistency
         }
         
         response = self._make_request(endpoint, additional_params)
@@ -186,7 +186,7 @@ class JotFormService:
         for submission in submissions:
             parsed_data = {
                 "submission_id": submission.get("id"),
-                "created_at": submission.get("created_at"),
+                "created_at": submission.get("submission_date"),
                 "status": submission.get("status"),
                 "mapped_data": {}
             }
@@ -226,9 +226,9 @@ class JotFormService:
         else:
             print("❌ Connection test failed")
             return False
-    
+            
     def process_submissions(self) -> List[Dict]:
-        """Process submissions with company-specific filtering"""
+        """Process submissions - CAPTURE ALL referrals regardless of type"""
         print(f"📄 Processing submissions from JotForm for {self.company}...")
         
         submissions_data = self.get_form_submissions_with_mapping(
@@ -249,7 +249,10 @@ class JotFormService:
                 advisor_name = self.config.normalize_advisor_name(data.get("advisor_name", ""))
                 business_type = str(data.get("business_type", ""))
                 customer_name = str(data.get("customer_name", "") or "Unknown Customer")
-                income_type = str(data.get("income_type", ""))  # NEW: Get income type
+                income_type = str(data.get("income_type", ""))
+                
+                # Store original business type BEFORE any changes
+                original_business_type = business_type
                 
                 try:
                     proc_raw = data.get("expected_proc", "")
@@ -265,36 +268,51 @@ class JotFormService:
                 
                 submission_date = self._parse_date(data.get("submission_date", ""))
                 if not submission_date:
-                    submission_date = self._parse_date(submission.get("created_at", ""))
+                    submission_date = self._parse_date(submission.get("submission_date", ""))
                 
+                # Check if this is ANY kind of referral
                 referral_to = None
-                if business_type and ('referral to' in business_type.lower() or business_type.lower().startswith('referral')):
-                    if 'to' in business_type.lower():
-                        referral_to = business_type.lower().split('to')[-1].strip().title()
-                    else:
-                        referral_to = business_type.replace('Referral', '').strip()
+                is_referral = 'referral' in business_type.lower()
+                
+                if is_referral:
+                    print(f"Found referral: '{original_business_type}'")
+                    
+                    # Extract referral_to for "Referral to X" format
+                    if 'referral to' in business_type.lower():
+                        referral_to = business_type.lower().split('referral to')[-1].strip().title()
+                    
+                    # Set business_type to 'Referral' for consistent database storage
                     business_type = 'Referral'
                 
-                # Company-specific filtering: Only process valid business types OR referrals
-                if advisor_name and (self.config.is_valid_business_type(business_type) or business_type == 'Referral'):
+                # SAVE CONDITIONS: Valid business type OR any referral
+                should_save = False
+                if advisor_name:
+                    if is_referral:
+                        should_save = True  # Save ALL referrals
+                        print(f"Saving referral: {original_business_type}")
+                    elif self.config.is_valid_business_type(business_type):
+                        should_save = True  # Save other valid types
+                
+                if should_save:
                     processed_submissions.append({
                         'advisor_name': advisor_name,
                         'business_type': business_type,
+                        'original_business_type': original_business_type,
                         'submission_date': submission_date or datetime.now().date(),
                         'customer_name': customer_name,
                         'expected_proc': expected_proc,
                         'expected_fee': expected_fee,
                         'referral_to': referral_to,
-                        'income_type': income_type,  # NEW: Include income type
+                        'income_type': income_type,
                         'company': self.company,
                         'jotform_id': submission.get("submission_id")
                     })
                     
             except Exception as e:
-                print(f"📄 Error processing submission: {e}")
+                print(f"Error processing submission: {e}")
                 continue
         
-        print(f"📄 Successfully processed {len(processed_submissions)} valid submissions for {self.company}")
+        print(f"Successfully processed {len(processed_submissions)} submissions for {self.company}")
         return processed_submissions
 
     def process_paid_cases(self) -> List[Dict]:
@@ -339,7 +357,7 @@ class JotFormService:
                 
                 date_paid = self._parse_date(data.get("date_paid"))
                 if not date_paid:
-                    date_paid = self._parse_date(case.get("created_at"))
+                    date_paid = self._parse_date(case.get("submission_date"))
                 
                 # Company-specific filtering
                 if (advisor_name and 

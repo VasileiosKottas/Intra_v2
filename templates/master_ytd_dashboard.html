@@ -4,119 +4,126 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Team YTD Performance Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main-styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/master.css') }}">
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            background: #f5f7fa;
-            color: #333;
-        }
-
-        .container {
+        .ytd-dashboard {
+            padding: 20px;
             max-width: 1400px;
             margin: 0 auto;
-            padding: 20px;
         }
 
-        .header {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
+        .dashboard-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
         }
 
-        .header-title {
-            color: #2c3e50;
-            margin: 0;
-            font-size: 1.8rem;
-            font-weight: 600;
+        .dashboard-header h1 {
+            margin: 0 0 20px 0;
+            font-size: 2.5rem;
+            font-weight: 300;
         }
 
-        .controls {
-            display: flex;
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
             gap: 15px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
+            align-items: end;
         }
 
         .control-group label {
-            font-weight: 600;
-            color: #34495e;
-            font-size: 0.9rem;
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            opacity: 0.9;
         }
 
-        
+        .control-group select,
+        .control-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 14px;
+        }
+
+        .control-group select option {
+            background: #333;
+            color: white;
+        }
+
+        .btn-primary, .btn-secondary {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
 
         .btn-primary {
-            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            background: #4CAF50;
             color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
         }
 
         .btn-primary:hover {
-            background: linear-gradient(135deg, #2980b9 0%, #1f618d 100%);
+            background: #45a049;
             transform: translateY(-2px);
         }
 
         .btn-secondary {
-            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+            background: #2196F3;
             color: white;
-            padding: 8px 16px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.85rem;
+        }
+
+        .btn-secondary:hover {
+            background: #1976D2;
+            transform: translateY(-2px);
         }
 
         .dashboard-tabs {
             display: flex;
             background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            border-radius: 12px;
+            padding: 5px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         }
 
         .tab-button {
             flex: 1;
             padding: 15px 20px;
-            background: #ecf0f1;
             border: none;
-            cursor: pointer;
+            background: transparent;
+            border-radius: 8px;
             font-weight: 600;
+            cursor: pointer;
             transition: all 0.3s ease;
-            color: #7f8c8d;
+            color: #666;
         }
 
         .tab-button.active {
-            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
         }
 
         .tab-content {
             display: none;
             background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            min-height: 400px;
         }
 
         .tab-content.active {
@@ -124,184 +131,173 @@
         }
 
         .section-title {
-            font-size: 1.5rem;
+            font-size: 1.8rem;
+            color: #333;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .section-subtitle {
+            font-size: 1.3rem;
+            color: #333;
+            margin: 30px 0 15px 0;
             font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 20px;
-            text-align: center;
+        }
+        
+        .ytd-section {
+            margin-bottom: 40px;
         }
 
-        .ytd-summary {
+        .team-summary {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
+            gap: 20px;
             margin-bottom: 30px;
         }
 
         .summary-card {
-            background: white;
+            background: linear-gradient(135deg, #f5f7ff 0%, #e8f2ff 100%);
             padding: 20px;
-            border-radius: 8px;
-            border-left: 4px solid #3498db;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid #e1e8f0;
         }
 
         .summary-card h4 {
-            color: #7f8c8d;
+            margin: 0 0 10px 0;
+            color: #666;
             font-size: 0.9rem;
-            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .summary-card .value {
             font-size: 1.8rem;
             font-weight: 700;
-            color: #2c3e50;
+            color: #333;
+        }
+
+        .month-section {
+            margin-bottom: 40px;
+        }
+
+        .month-title {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 25px;
+            margin: 0 0 20px 0;
+            border-radius: 8px;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .performance-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            font-size: 0.9rem;
+        }
+
+        .performance-table th {
+            background: #f8f9fa;
+            color: #333;
+            padding: 15px 8px;
+            text-align: center;
+            font-weight: 600;
+            border-bottom: 2px solid #dee2e6;
+            font-size: 0.85rem;
+        }
+
+        .performance-table td {
+            padding: 12px 8px;
+            text-align: center;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .performance-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .totals-row {
+            background: #e8f2ff !important;
+            font-weight: 600;
+        }
+
+        .totals-row:hover {
+            background: #d4edda !important;
+        }
+
+        .currency {
+            color: #28a745;
+            font-weight: 600;
+        }
+
+        .negative {
+            color: #dc3545;
+            font-weight: 600;
         }
 
         .loading {
             text-align: center;
-            padding: 40px;
-            color: #7f8c8d;
-            font-style: italic;
+            padding: 60px 20px;
+            color: #666;
+            font-size: 1.1rem;
         }
 
         .error {
             background: #f8d7da;
             color: #721c24;
-            padding: 15px;
+            padding: 20px;
             border-radius: 8px;
+            text-align: center;
             margin: 20px 0;
-            border-left: 4px solid #dc3545;
         }
 
-        .month-section {
-            margin-bottom: 30px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .month-header {
-            background: #3498db;
-            color: white;
-            padding: 15px;
-            font-weight: 600;
-            font-size: 1.1rem;
-        }
-
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.85rem;
-        }
-
-        .data-table th {
-            background: #f8f9fa;
-            padding: 12px 8px;
-            text-align: center;
-            font-weight: 600;
-            border-bottom: 2px solid #dee2e6;
-            font-size: 0.75rem;
-            line-height: 1.2;
-        }
-
-        .data-table td {
-            padding: 10px 8px;
-            text-align: center;
-            border-bottom: 1px solid #f1f3f4;
-        }
-
-        .data-table tr:nth-child(even) {
-            background: #f8f9fa;
-        }
-
-        .totals-row {
-            background: #e3f2fd !important;
-            font-weight: bold;
-        }
-
-        .currency {
-            color: #27ae60;
-            font-weight: 600;
-        }
-
-        .negative {
-            color: #e74c3c;
-            font-weight: 600;
-        }
-
-        /* C&C Theme */
-        body.cnc-theme {
-            --primary-color: #f39c12;
-            --secondary-color: #e67e22;
-        }
-
-        body.cnc-theme .header {
-            border-top: 4px solid var(--primary-color);
-        }
-
-        body.cnc-theme .month-header {
-            background: var(--primary-color);
+        /* Company theme switching */
+        body.cnc-theme .dashboard-header {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
         }
 
         body.cnc-theme .tab-button.active {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
         }
 
-        body.cnc-theme .summary-card {
-            border-left-color: var(--primary-color);
+        body.cnc-theme .section-title {
+            border-bottom-color: #ff6b6b;
         }
 
-        body.cnc-theme .btn-primary {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        body.cnc-theme .month-title {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
         }
 
-        body.cnc-theme .btn-primary:hover {
-            background: linear-gradient(135deg, var(--secondary-color) 0%, #d35400 100%);
-        }
-
-        /* Responsive design */
         @media (max-width: 768px) {
-            .container { padding: 10px; }
-            .header { 
-                flex-direction: column; 
-                text-align: center; 
-                gap: 15px;
+            .controls-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
             }
-            .controls { 
-                justify-content: center; 
-                width: 100%;
-            }
-            .control-group {
-                min-width: 120px;
-            }
-            .dashboard-tabs { 
+            
+            .dashboard-tabs {
                 flex-direction: column;
             }
-            .data-table { 
-                font-size: 0.7rem; 
-            }
-            .data-table th,
-            .data-table td {
-                padding: 6px 4px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .ytd-summary {
-                grid-template-columns: 1fr;
-            }
-            .data-table {
-                font-size: 0.65rem;
+            
+            .team-summary {
+                grid-template-columns: 1fr 1fr;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1 class="header-title">Team YTD Performance Dashboard</h1>
-            <div class="controls">
+    <div class="ytd-dashboard">
+        <div class="dashboard-header">
+            <h1>Team YTD Performance Dashboard</h1>
+            <div class="controls-grid">
                 <div class="control-group">
                     <label for="companySelect">Company</label>
                     <select id="companySelect" onchange="loadAvailableTeams()">
@@ -317,11 +313,11 @@
                 </div>
                 <div class="control-group">
                     <label for="startDateSelect">Start Date</label>
-                    <input type="date" id="startDateSelect" value="">
+                    <input type="date" id="startDateSelect">
                 </div>
                 <div class="control-group">
                     <label for="endDateSelect">End Date</label>
-                    <input type="date" id="endDateSelect" value="">
+                    <input type="date" id="endDateSelect">
                 </div>
                 <button class="btn-primary" onclick="loadDashboard()">Load Dashboard</button>
                 <button class="btn-primary" onclick="downloadExcel()" id="downloadBtn" style="display:none;">Download Excel</button>
@@ -332,7 +328,6 @@
         <div class="dashboard-tabs">
             <button class="tab-button active" onclick="switchTab('activity')">Activity & Submitted</button>
             <button class="tab-button" onclick="switchTab('ytd-totals')">YTD Totals</button>
-            <button class="tab-button" onclick="switchTab('pipeline')">Pipeline Summary</button>
         </div>
 
         <!-- Activity & Submitted Tab -->
@@ -351,13 +346,7 @@
             </div>
         </div>
 
-        <!-- Pipeline Summary Tab -->
-        <div id="pipeline-tab" class="tab-content">
-            <div class="section-title">Pipeline Summary</div>
-            <div id="pipeline-content">
-                <div class="loading">Select a team and date range to load pipeline data</div>
-            </div>
-        </div>
+
     </div>
 
     <script>
@@ -407,6 +396,11 @@
                         teamSelect.appendChild(option);
                     });
                 }
+                
+                // Clear the current dashboard when company changes
+                document.getElementById('activity-content').innerHTML = '<div class="loading">Select a team and date range to load activity data</div>';
+                document.getElementById('downloadBtn').style.display = 'none';
+                
             } catch (error) {
                 console.error('Error loading teams:', error);
                 showError('activity-content', 'Error loading teams: ' + error.message);
@@ -450,8 +444,7 @@
                 await loadActivityData();
             } else if (activeTab.includes('ytd')) {
                 await loadYTDTotals();
-            } else if (activeTab.includes('pipeline')) {
-                await loadPipelineData();  // ✅ ADD THIS LINE
+
             }
         }
 
@@ -482,25 +475,15 @@
                 container.innerHTML = `
                     <div class="error">
                         No monthly data found for the selected period.
-                        <br><small>Response: ${JSON.stringify(data, null, 2)}</small>
+                        <br>Please check your date range and team selection.
                     </div>
                 `;
                 return;
             }
-            
-            // Calculate totals from monthly_data since that's what your backend returns
-            let totalActivity = 0;
-            let totalSubmitted = 0;
-            
-            data.monthly_data.forEach(month => {
-                if (month.totals) {
-                    totalActivity += month.totals.total_activity || 0;
-                    totalSubmitted += month.totals.submitted_total || 0;
-                }
-            });
-            
+
+            // Display team info
             let html = `
-                <div class="ytd-summary">
+                <div class="team-summary">
                     <div class="summary-card">
                         <h4>Team</h4>
                         <div class="value">${data.team_name || 'Unknown Team'}</div>
@@ -511,49 +494,59 @@
                     </div>
                     <div class="summary-card">
                         <h4>Period</h4>
-                        <div class="value">${data.date_range ? formatDateRange(data.date_range.start, data.date_range.end) : 'Unknown Period'}</div>
+                        <div class="value">${data.date_range ? data.date_range.period : 'Unknown Period'}</div>
                     </div>
                     <div class="summary-card">
                         <h4>Total Activity</h4>
-                        <div class="value">${totalActivity}</div>
+                        <div class="value">${data.ytd_totals ? data.ytd_totals.total_activity : 0}</div>
                     </div>
                     <div class="summary-card">
                         <h4>Total Submitted</h4>
-                        <div class="value currency">£${formatNumber(totalSubmitted)}</div>
+                        <div class="value">£${formatNumber(data.ytd_totals ? data.ytd_totals.submitted_total : 0)}</div>
                     </div>
                 </div>
             `;
 
-            // Display monthly breakdown with conditional C&C Apps column
+            // Process monthly data
             data.monthly_data.forEach(month => {
                 html += `
                     <div class="month-section">
-                        <div class="month-header">${month.month || 'Unknown Month'}</div>
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Advisor</th>
-                                    <th>Appointments<br>Booked</th>
-                                    <th>Appointments<br>Completed</th>
-                                    <th>Outbound<br>Calls</th>
-                                    <th>Total<br>Activity</th>
-                                    <th>Mortgage<br>Apps</th>
-                                    <th>Insurance<br>Apps</th>
-                                    ${currentCompany === 'cnc' ? '<th>C&C<br>Apps</th>' : ''}
-                                    <th>Insurance<br>Referrals</th>
-                                    <th>Other<br>Referrals</th>
-                                    <th>Submitted<br>Total</th>
-                                    <th>Conversion<br>%</th>
-                                    <th>Target</th>
-                                    <th>Vs Target</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                        <h3 class="month-title">${month.month}</h3>
+                        <div class="table-container">
+                            <table class="performance-table">
+                                <thead>
+                                    <tr>
+                                        <th>Advisor</th>
+                                        <th>Apps<br>Booked</th>
+                                        <th>Apps<br>Completed</th>
+                                        <th>Outbound<br>Calls</th>
+                                        <th>Total<br>Activity</th>`;
+                
+                // Company-specific headers
+                if (currentCompany === 'cnc') {
+                    html += `
+                                        <th>C&C<br>Apps</th>`;
+                } else {
+                    html += `
+                                        <th>Mortgage<br>Apps</th>
+                                        <th>Insurance<br>Apps</th>
+                                        <th>Insurance<br>Referrals</th>
+                                        <th>Other<br>Referrals</th>`;
+                }
+                
+                html += `
+                                        <th>Submitted<br>Total</th>
+                                        <th>Conversion<br>%</th>
+                                        <th>Target</th>
+                                        <th>Vs Target</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
                 `;
 
                 // Check if month has members
                 if (!month.members || month.members.length === 0) {
-                    const colCount = currentCompany === 'cnc' ? 14 : 13;
+                    const colCount = currentCompany === 'cnc' ? 10 : 13;
                     html += `
                         <tr>
                             <td colspan="${colCount}" style="text-align: center; padding: 20px; color: #7f8c8d;">
@@ -569,12 +562,21 @@
                                 <td>${member.appointments_booked || 0}</td>
                                 <td>${member.appointments_completed || 0}</td>
                                 <td>${member.outbound_calls || 0}</td>
-                                <td><strong>${member.total_activity || 0}</strong></td>
+                                <td><strong>${member.total_activity || 0}</strong></td>`;
+                        
+                        // Company-specific data columns
+                        if (currentCompany === 'cnc') {
+                            html += `
+                                <td>${member.cnc_apps || 0}</td>`;
+                        } else {
+                            html += `
                                 <td>${member.mortgage_apps || 0}</td>
                                 <td>${member.insurance_apps || 0}</td>
-                                ${currentCompany === 'cnc' ? `<td>${member.cnc_apps || 0}</td>` : ''}
                                 <td>${member.insurance_referrals || 0}</td>
-                                <td>${member.other_referrals || 0}</td>
+                                <td>${member.other_referrals || 0}</td>`;
+                        }
+                        
+                        html += `
                                 <td class="currency">£${formatNumber(member.submitted_total || 0)}</td>
                                 <td>${member.conversion_rate || 0}%</td>
                                 <td>£${formatNumber(member.monthly_target || 0)}</td>
@@ -592,12 +594,21 @@
                                     <td><strong>${totals.appointments_booked || 0}</strong></td>
                                     <td><strong>${totals.appointments_completed || 0}</strong></td>
                                     <td><strong>${totals.outbound_calls || 0}</strong></td>
-                                    <td><strong>${totals.total_activity || 0}</strong></td>
+                                    <td><strong>${totals.total_activity || 0}</strong></td>`;
+                        
+                        // Company-specific totals
+                        if (currentCompany === 'cnc') {
+                            html += `
+                                    <td><strong>${totals.cnc_apps || 0}</strong></td>`;
+                        } else {
+                            html += `
                                     <td><strong>${totals.mortgage_apps || 0}</strong></td>
                                     <td><strong>${totals.insurance_apps || 0}</strong></td>
-                                    ${currentCompany === 'cnc' ? `<td><strong>${totals.cnc_apps || 0}</strong></td>` : ''}
                                     <td><strong>${totals.insurance_referrals || 0}</strong></td>
-                                    <td><strong>${totals.other_referrals || 0}</strong></td>
+                                    <td><strong>${totals.other_referrals || 0}</strong></td>`;
+                        }
+                        
+                        html += `
                                     <td><strong>£${formatNumber(totals.submitted_total || 0)}</strong></td>
                                     <td><strong>-</strong></td>
                                     <td><strong>£${formatNumber(totals.monthly_target || 0)}</strong></td>
@@ -608,8 +619,9 @@
                 }
 
                 html += `
-                            </tbody>
-                        </table>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 `;
             });
@@ -637,11 +649,22 @@
         function displayYTDTotals(data) {
             const container = document.getElementById('ytd-content');
             
+            // Check if we have YTD data
+            if (!data.ytd_data) {
+                container.innerHTML = `
+                    <div class="error">
+                        No YTD data found for the selected period.
+                        <br>Please check your date range and team selection.
+                    </div>
+                `;
+                return;
+            }
+            
             let html = `
-                <div class="ytd-summary">
+                <div class="team-summary">
                     <div class="summary-card">
                         <h4>Team</h4>
-                        <div class="value">${data.team_name}</div>
+                        <div class="value">${data.team_name || 'Unknown Team'}</div>
                     </div>
                     <div class="summary-card">
                         <h4>Company</h4>
@@ -649,113 +672,412 @@
                     </div>
                     <div class="summary-card">
                         <h4>Period</h4>
-                        <div class="value">${data.date_range ? formatDateRange(data.date_range.start, data.date_range.end) : 'N/A'}</div>
+                        <div class="value">${data.date_range ? data.date_range.start + ' to ' + data.date_range.end : 'N/A'}</div>
                     </div>
                 </div>
             `;
             
-            if (data.ytd_data && data.ytd_data.total_submitted) {
+            // Total Submitted Table with Q3 and Q4
+            if (data.ytd_data.total_submitted && data.ytd_data.total_submitted.length > 0) {
                 html += `
-                    <div class="section-title">Total Submitted</div>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Advisor</th>
-                                <th>Quarter 1</th>
-                                <th>Quarter 2</th>
-                                <th>YTD Total</th>
-                                <th>Target</th>
-                                <th>Vs Target</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                    <div class="ytd-section">
+                        <h3 class="section-subtitle">Total Submitted</h3>
+                        <div class="table-container">
+                            <table class="performance-table">
+                                <thead>
+                                    <tr>
+                                        <th>Advisor</th>
+                                        <th>Quarter 1</th>
+                                        <th>Quarter 2</th>
+                                        <th>Quarter 3</th>
+                                        <th>Quarter 4</th>
+                                        <th>YTD Total</th>
+                                        <th>Yearly Target</th>
+                                        <th>Vs Target</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
                 `;
                 
-                data.ytd_data.total_submitted.forEach(item => {
+                let totalSubmittedYTD = 0;
+                let totalYearlyTarget = 0;
+                let totalQ1 = 0;
+                let totalQ2 = 0;
+                let totalQ3 = 0;
+                let totalQ4 = 0;
+                
+                data.ytd_data.total_submitted.forEach(advisor => {
+                    totalSubmittedYTD += advisor.ytd_total || 0;
+                    totalYearlyTarget += advisor.yearly_target || 0;
+                    totalQ1 += advisor.q1 || 0;
+                    totalQ2 += advisor.q2 || 0;
+                    totalQ3 += advisor.q3 || 0;
+                    totalQ4 += advisor.q4 || 0;
+                    
+                    const vsTarget = advisor.vs_target || 0;
+                    const vsTargetClass = vsTarget >= 0 ? 'currency' : 'negative';
+                    
                     html += `
                         <tr>
-                            <td style="text-align: left; font-weight: 600;">${item.advisor}</td>
-                            <td class="currency">£${formatNumber(item.q1 || 0)}</td>
-                            <td class="currency">£${formatNumber(item.q2 || 0)}</td>
-                            <td class="currency"><strong>£${formatNumber(item.ytd_total || 0)}</strong></td>
-                            <td>£${formatNumber(item.target || 0)}</td>
-                            <td class="${(item.vs_target || 0) >= 0 ? 'currency' : 'negative'}">£${formatNumber(item.vs_target || 0)}</td>
+                            <td style="text-align: left; font-weight: 600;">${advisor.advisor || 'Unknown'}</td>
+                            <td class="currency">£${formatNumber(advisor.q1 || 0)}</td>
+                            <td class="currency">£${formatNumber(advisor.q2 || 0)}</td>
+                            <td class="currency">£${formatNumber(advisor.q3 || 0)}</td>
+                            <td class="currency">£${formatNumber(advisor.q4 || 0)}</td>
+                            <td class="currency"><strong>£${formatNumber(advisor.ytd_total || 0)}</strong></td>
+                            <td>£${formatNumber(advisor.yearly_target || 0)}</td>
+                            <td class="${vsTargetClass}">£${formatNumber(vsTarget)}</td>
+                        </tr>
+                    `;
+                });
+                
+                const totalVsTarget = totalSubmittedYTD - totalYearlyTarget;
+                const totalVsTargetClass = totalVsTarget >= 0 ? 'currency' : 'negative';
+                
+                html += `
+                        <tr class="totals-row">
+                            <td style="text-align: left;"><strong>Totals:</strong></td>
+                            <td class="currency"><strong>£${formatNumber(totalQ1)}</strong></td>
+                            <td class="currency"><strong>£${formatNumber(totalQ2)}</strong></td>
+                            <td class="currency"><strong>£${formatNumber(totalQ3)}</strong></td>
+                            <td class="currency"><strong>£${formatNumber(totalQ4)}</strong></td>
+                            <td class="currency"><strong>£${formatNumber(totalSubmittedYTD)}</strong></td>
+                            <td><strong>£${formatNumber(totalYearlyTarget)}</strong></td>
+                            <td class="${totalVsTargetClass}"><strong>£${formatNumber(totalVsTarget)}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+                `;
+            }
+            
+            // Appointments Completed Table with Q3 and Q4
+            if (data.ytd_data.appointments_completed && data.ytd_data.appointments_completed.length > 0) {
+                html += `
+                    <div class="ytd-section">
+                        <h3 class="section-subtitle">Appointments Completed</h3>
+                        <div class="table-container">
+                            <table class="performance-table">
+                                <thead>
+                                    <tr>
+                                        <th>Advisor</th>
+                                        <th>Quarter 1</th>
+                                        <th>Quarter 2</th>
+                                        <th>Quarter 3</th>
+                                        <th>Quarter 4</th>
+                                        <th>YTD Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+                
+                let totalApptsYTD = 0;
+                let totalApptsQ1 = 0;
+                let totalApptsQ2 = 0;
+                let totalApptsQ3 = 0;
+                let totalApptsQ4 = 0;
+                
+                data.ytd_data.appointments_completed.forEach(advisor => {
+                    totalApptsYTD += advisor.ytd_total || 0;
+                    totalApptsQ1 += advisor.q1 || 0;
+                    totalApptsQ2 += advisor.q2 || 0;
+                    totalApptsQ3 += advisor.q3 || 0;
+                    totalApptsQ4 += advisor.q4 || 0;
+                    
+                    html += `
+                        <tr>
+                            <td style="text-align: left; font-weight: 600;">${advisor.advisor || 'Unknown'}</td>
+                            <td>${advisor.q1 || 0}</td>
+                            <td>${advisor.q2 || 0}</td>
+                            <td>${advisor.q3 || 0}</td>
+                            <td>${advisor.q4 || 0}</td>
+                            <td style="font-weight: 600;">${advisor.ytd_total || 0}</td>
                         </tr>
                     `;
                 });
                 
                 html += `
-                        </tbody>
-                    </table>
+                        <tr class="totals-row">
+                            <td style="text-align: left;"><strong>Totals:</strong></td>
+                            <td><strong>${totalApptsQ1}</strong></td>
+                            <td><strong>${totalApptsQ2}</strong></td>
+                            <td><strong>${totalApptsQ3}</strong></td>
+                            <td><strong>${totalApptsQ4}</strong></td>
+                            <td><strong>${totalApptsYTD}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
                 `;
-            } else {
-                html += `<div class="error">No YTD data available</div>`;
+            }
+            
+            // ADD NEW: Appointments Booked Table with Q3 and Q4
+            if (data.ytd_data.appointments_booked && data.ytd_data.appointments_booked.length > 0) {
+                html += `
+                    <div class="ytd-section">
+                        <h3 class="section-subtitle">Appointments Booked</h3>
+                        <div class="table-container">
+                            <table class="performance-table">
+                                <thead>
+                                    <tr>
+                                        <th>Advisor</th>
+                                        <th>Quarter 1</th>
+                                        <th>Quarter 2</th>
+                                        <th>Quarter 3</th>
+                                        <th>Quarter 4</th>
+                                        <th>YTD Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+                
+                let totalBookedYTD = 0;
+                let totalBookedQ1 = 0;
+                let totalBookedQ2 = 0;
+                let totalBookedQ3 = 0;
+                let totalBookedQ4 = 0;
+                
+                data.ytd_data.appointments_booked.forEach(advisor => {
+                    totalBookedYTD += advisor.ytd_total || 0;
+                    totalBookedQ1 += advisor.q1 || 0;
+                    totalBookedQ2 += advisor.q2 || 0;
+                    totalBookedQ3 += advisor.q3 || 0;
+                    totalBookedQ4 += advisor.q4 || 0;
+                    
+                    html += `
+                        <tr>
+                            <td style="text-align: left; font-weight: 600;">${advisor.advisor || 'Unknown'}</td>
+                            <td>${advisor.q1 || 0}</td>
+                            <td>${advisor.q2 || 0}</td>
+                            <td>${advisor.q3 || 0}</td>
+                            <td>${advisor.q4 || 0}</td>
+                            <td style="font-weight: 600;">${advisor.ytd_total || 0}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        <tr class="totals-row">
+                            <td style="text-align: left;"><strong>Totals:</strong></td>
+                            <td><strong>${totalBookedQ1}</strong></td>
+                            <td><strong>${totalBookedQ2}</strong></td>
+                            <td><strong>${totalBookedQ3}</strong></td>
+                            <td><strong>${totalBookedQ4}</strong></td>
+                            <td><strong>${totalBookedYTD}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+                `;
+            }
+            
+            // ADD NEW: Outbound Calls Table with Q3 and Q4
+            if (data.ytd_data.outbound_calls && data.ytd_data.outbound_calls.length > 0) {
+                html += `
+                    <div class="ytd-section">
+                        <h3 class="section-subtitle">Outbound Calls</h3>
+                        <div class="table-container">
+                            <table class="performance-table">
+                                <thead>
+                                    <tr>
+                                        <th>Advisor</th>
+                                        <th>Quarter 1</th>
+                                        <th>Quarter 2</th>
+                                        <th>Quarter 3</th>
+                                        <th>Quarter 4</th>
+                                        <th>YTD Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+                
+                let totalCallsYTD = 0;
+                let totalCallsQ1 = 0;
+                let totalCallsQ2 = 0;
+                let totalCallsQ3 = 0;
+                let totalCallsQ4 = 0;
+                
+                data.ytd_data.outbound_calls.forEach(advisor => {
+                    totalCallsYTD += advisor.ytd_total || 0;
+                    totalCallsQ1 += advisor.q1 || 0;
+                    totalCallsQ2 += advisor.q2 || 0;
+                    totalCallsQ3 += advisor.q3 || 0;
+                    totalCallsQ4 += advisor.q4 || 0;
+                    
+                    html += `
+                        <tr>
+                            <td style="text-align: left; font-weight: 600;">${advisor.advisor || 'Unknown'}</td>
+                            <td>${advisor.q1 || 0}</td>
+                            <td>${advisor.q2 || 0}</td>
+                            <td>${advisor.q3 || 0}</td>
+                            <td>${advisor.q4 || 0}</td>
+                            <td style="font-weight: 600;">${advisor.ytd_total || 0}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        <tr class="totals-row">
+                            <td style="text-align: left;"><strong>Totals:</strong></td>
+                            <td><strong>${totalCallsQ1}</strong></td>
+                            <td><strong>${totalCallsQ2}</strong></td>
+                            <td><strong>${totalCallsQ3}</strong></td>
+                            <td><strong>${totalCallsQ4}</strong></td>
+                            <td><strong>${totalCallsYTD}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+                `;
+            }
+            
+            // Total Apps Table with Q3 and Q4
+            if (data.ytd_data.total_apps && data.ytd_data.total_apps.length > 0) {
+                html += `
+                    <div class="ytd-section">
+                        <h3 class="section-subtitle">Total Apps</h3>
+                        <div class="table-container">
+                            <table class="performance-table">
+                                <thead>
+                                    <tr>
+                                        <th>Advisor</th>
+                                        <th>Quarter 1</th>
+                                        <th>Quarter 2</th>
+                                        <th>Quarter 3</th>
+                                        <th>Quarter 4</th>
+                                        <th>YTD Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+                
+                let totalAppsYTD = 0;
+                let totalAppsQ1 = 0;
+                let totalAppsQ2 = 0;
+                let totalAppsQ3 = 0;
+                let totalAppsQ4 = 0;
+                
+                data.ytd_data.total_apps.forEach(advisor => {
+                    totalAppsYTD += advisor.ytd_total || 0;
+                    totalAppsQ1 += advisor.q1 || 0;
+                    totalAppsQ2 += advisor.q2 || 0;
+                    totalAppsQ3 += advisor.q3 || 0;
+                    totalAppsQ4 += advisor.q4 || 0;
+                    
+                    html += `
+                        <tr>
+                            <td style="text-align: left; font-weight: 600;">${advisor.advisor || 'Unknown'}</td>
+                            <td>${advisor.q1 || 0}</td>
+                            <td>${advisor.q2 || 0}</td>
+                            <td>${advisor.q3 || 0}</td>
+                            <td>${advisor.q4 || 0}</td>
+                            <td style="font-weight: 600;">${advisor.ytd_total || 0}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        <tr class="totals-row">
+                            <td style="text-align: left;"><strong>Totals:</strong></td>
+                            <td><strong>${totalAppsQ1}</strong></td>
+                            <td><strong>${totalAppsQ2}</strong></td>
+                            <td><strong>${totalAppsQ3}</strong></td>
+                            <td><strong>${totalAppsQ4}</strong></td>
+                            <td><strong>${totalAppsYTD}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+                `;
             }
             
             container.innerHTML = html;
         }
 
-        function switchTab(tabName) {
-            // Update tab buttons
-            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
-            
-            // Update tab content
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            document.getElementById(`${tabName}-tab`).classList.add('active');
-            
-            // Load data for the active tab if team is selected
-            if (currentTeam) {
-                if (tabName === 'activity') {
-                    loadActivityData();
-                } else if (tabName === 'ytd-totals') {
-                    loadYTDTotals();
-                } else if (tabName === 'pipeline') {
-                    loadPipelineData();  // ✅ ADD THIS LINE
-                }
-            }
-        }
-        async function loadPipelineData() {
-            try {
-                showLoading('pipeline-content', 'Loading pipeline summary...');
-                
-                if (!currentTeam || !currentEndDate) {
-                    showError('pipeline-content', 'Please select a team and date first');
-                    return;
-                }
-                
-                // Build API URL
-                let url = `/api/teams/pipeline-summary/${currentTeam}?end_date=${currentEndDate}`;
-                if (currentStartDate) {
-                    url += `&start_date=${currentStartDate}`;
-                }
-                
-                console.log('Loading pipeline data from:', url);
-                
-                const response = await fetch(url);
-                const data = await response.json();
-                
-                console.log('Pipeline API response:', data);
 
-                if (data.success) {
-                    displayPipelineData(data);
-                } else {
-                    showError('pipeline-content', data.error || 'Failed to load pipeline data');
-                }
-            } catch (error) {
-                console.error('Error loading pipeline data:', error);
-                showError('pipeline-content', 'Error loading pipeline data: ' + error.message);
-            }
-        }
+
         async function downloadExcel() {
             if (!currentTeam) {
                 alert('Please select a team first');
                 return;
             }
-            // Placeholder - will implement when Excel method is ready
-            alert('Excel download not implemented yet');
+            
+            if (!currentEndDate || !currentStartDate) {
+                alert('Please select both start and end dates');
+                return;
+            }
+            
+            const downloadBtn = document.getElementById('downloadBtn');
+            const originalText = downloadBtn.textContent;
+            
+            try {
+                // Show loading state
+                downloadBtn.textContent = 'Generating Excel...';
+                downloadBtn.disabled = true;
+                
+                // Build the download URL with parameters
+                const params = new URLSearchParams({
+                    end_date: currentEndDate,
+                    start_date: currentStartDate
+                });
+                
+                const downloadUrl = `/api/teams/ytd-excel/${currentTeam}?${params.toString()}`;
+                
+                console.log('Downloading Excel from:', downloadUrl);
+                
+                // Create a temporary link and trigger download
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Show success message
+                showSuccessMessage('Excel report download started successfully');
+                
+            } catch (error) {
+                console.error('Excel download error:', error);
+                alert('Failed to download Excel: ' + error.message);
+            } finally {
+                // Reset button
+                setTimeout(() => {
+                    downloadBtn.textContent = originalText;
+                    downloadBtn.disabled = false;
+                }, 2000);
+            }
         }
-
+        function showSuccessMessage(message) {
+            // Create a temporary success notification
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #28a745;
+                color: white;
+                padding: 15px 20px;
+                border-radius: 5px;
+                z-index: 1000;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                font-weight: 500;
+            `;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                if (document.body.contains(notification)) {
+                    document.body.removeChild(notification);
+                }
+            }, 3000);
+        }
         async function testCalendly() {
             const testBtn = event.target;
             const originalText = testBtn.textContent;
@@ -774,186 +1096,60 @@
                 // Show results
                 let message = 'Calendly Test Results:\n\n';
                 message += `Connection: ${debugData.calendly_status || debugData.error || 'Unknown'}\n`;
-                message += `Token: ${debugData.has_token ? '✅ Configured' : '❌ Missing'}\n`;
-                message += `Users: ${debugData.organization_users?.count || 0} found\n`;
-                message += `Recent Events: ${debugData.recent_events?.count || 0} found\n\n`;
-                
-                if (emailsData.success) {
-                    message += `Available Calendly emails:\n`;
-                    emailsData.calendly_users.slice(0, 5).forEach(user => {
-                        message += `• ${user.name} (${user.email}) - ${user.events_count} events\n`;
-                    });
-                } else {
-                    message += `Emails error: ${emailsData.error}`;
-                }
+                message += `Token: ${debugData.has_token ? 'Present' : 'Missing'}\n`;
+                message += `Users Found: ${emailsData.total_users || 0}\n`;
 
                 alert(message);
-
             } catch (error) {
-                alert('Error testing Calendly: ' + error.message);
+                alert('Test failed: ' + error.message);
             } finally {
                 testBtn.textContent = originalText;
                 testBtn.disabled = false;
             }
         }
 
-        function showLoading(containerId, message = 'Loading...') {
-            const container = document.getElementById(containerId);
-            if (container) {
-                container.innerHTML = `<div class="loading">${message}</div>`;
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tab buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            // Add active class to clicked button
+            event.target.classList.add('active');
+            
+            // Load data for the selected tab if we have a team selected
+            if (currentTeam && currentEndDate) {
+                if (tabName === 'activity') {
+                    loadActivityData();
+                } else if (tabName === 'ytd-totals') {
+                    loadYTDTotals();
+                }
             }
+        }
+
+        function showLoading(containerId, message) {
+            document.getElementById(containerId).innerHTML = `<div class="loading">${message}</div>`;
         }
 
         function showError(containerId, message) {
-            const container = document.getElementById(containerId);
-            if (container) {
-                container.innerHTML = `<div class="error">Error: ${message}</div>`;
-            }
+            document.getElementById(containerId).innerHTML = `<div class="error">${message}</div>`;
         }
 
         function formatNumber(num) {
-            if (num === null || num === undefined || isNaN(num)) {
-                return '0';
-            }
-            return Math.round(parseFloat(num)).toLocaleString('en-GB');
-        }
-
-        function formatDateRange(start, end) {
-            if (!start || !end) return 'Unknown Period';
-            
-            try {
-                const startDate = new Date(start);
-                const endDate = new Date(end);
-                return `${startDate.toLocaleDateString('en-GB')} - ${endDate.toLocaleDateString('en-GB')}`;
-            } catch (e) {
-                return 'Invalid date range';
-            }
-        }
-
-        function displayPipelineData(data) {
-            const container = document.getElementById('pipeline-content');
-            
-            if (!data.pipeline_data || !Array.isArray(data.pipeline_data)) {
-                showError('pipeline-content', 'Invalid pipeline data received');
-                return;
-            }
-            
-            let html = `
-                <div class="ytd-summary">
-                    <div class="summary-card">
-                        <h4>Team</h4>
-                        <div class="value">${data.team_name}</div>
-                    </div>
-                    <div class="summary-card">
-                        <h4>Company</h4>
-                        <div class="value">${currentCompany.toUpperCase()}</div>
-                    </div>
-                    <div class="summary-card">
-                        <h4>Total Cases</h4>
-                        <div class="value">${data.totals ? data.totals.totals : 0}</div>
-                    </div>
-                    <div class="summary-card">
-                        <h4>Date Range</h4>
-                        <div class="value">${data.date_range ? formatDateRange(data.date_range.start, data.date_range.end) : 'N/A'}</div>
-                    </div>
-                </div>
-                
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Advisor/Stage</th>
-                            <th>Started</th>
-                            <th>Fact Find</th>
-                            <th>Recommendation</th>
-                            <th>Submitted</th>
-                            <th>Exchange</th>
-                            <th>Totals</th>
-                            <th>Percent of Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
-            // Add member rows
-            data.pipeline_data.forEach(item => {
-                html += `
-                    <tr>
-                        <td style="text-align: left; font-weight: 600;">${item.advisor || 'Unknown'}</td>
-                        <td>${item.started || 0}</td>
-                        <td>${item.fact_find || 0}</td>
-                        <td>${item.recommendation || 0}</td>
-                        <td>${item.submitted || 0}</td>
-                        <td>${item.exchange || 0}</td>
-                        <td><strong>${item.totals || 0}</strong></td>
-                        <td>${item.percent_of_total || 0}%</td>
-                    </tr>
-                `;
+            if (num == null) return '0';
+            return parseFloat(num).toLocaleString('en-GB', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
             });
-
-            // Add totals row
-            if (data.totals) {
-                html += `
-                    <tr class="totals-row">
-                        <td style="text-align: left;"><strong>Totals:</strong></td>
-                        <td><strong>${data.totals.started || 0}</strong></td>
-                        <td><strong>${data.totals.fact_find || 0}</strong></td>
-                        <td><strong>${data.totals.recommendation || 0}</strong></td>
-                        <td><strong>${data.totals.submitted || 0}</strong></td>
-                        <td><strong>${data.totals.exchange || 0}</strong></td>
-                        <td><strong>${data.totals.totals || 0}</strong></td>
-                        <td><strong>100.0%</strong></td>
-                    </tr>
-                `;
-            }
-
-            html += `</tbody></table>`;
-
-            // Add stage distribution breakdown if available
-            if (data.percent_totals) {
-                html += `
-                    <div class="section-title" style="margin-top: 30px;">Stage Distribution</div>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Stage</th>
-                                <th>Count</th>
-                                <th>Percentage</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Started</td>
-                                <td>${data.totals.started || 0}</td>
-                                <td>${data.percent_totals.started || 0}%</td>
-                            </tr>
-                            <tr>
-                                <td>Fact Find</td>
-                                <td>${data.totals.fact_find || 0}</td>
-                                <td>${data.percent_totals.fact_find || 0}%</td>
-                            </tr>
-                            <tr>
-                                <td>Recommendation</td>
-                                <td>${data.totals.recommendation || 0}</td>
-                                <td>${data.percent_totals.recommendation || 0}%</td>
-                            </tr>
-                            <tr>
-                                <td>Submitted</td>
-                                <td>${data.totals.submitted || 0}</td>
-                                <td>${data.percent_totals.submitted || 0}%</td>
-                            </tr>
-                            <tr>
-                                <td>Exchange</td>
-                                <td>${data.totals.exchange || 0}</td>
-                                <td>${data.percent_totals.exchange || 0}%</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                `;
-            }
-
-            container.innerHTML = html;
         }
-
     </script>
 </body>
 </html>

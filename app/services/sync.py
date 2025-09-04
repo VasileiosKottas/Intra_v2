@@ -21,9 +21,9 @@ class DataSyncService:
     def __init__(self, company: str):
         self.company = company
         self.jotform_service = JotFormService(company)
-    
+
     def sync_submissions(self) -> int:
-        """Sync submissions for the company"""
+        """Sync submissions for the company - ENHANCED to save original business type"""
         submissions = self.jotform_service.process_submissions()
         submissions_added = 0
         
@@ -39,6 +39,7 @@ class DataSyncService:
                         advisor_name=submission_data['advisor_name'],
                         advisor_id=advisor.id if advisor else None,
                         business_type=submission_data['business_type'],
+                        original_business_type=submission_data['original_business_type'],  # NEW
                         submission_date=submission_data['submission_date'],
                         customer_name=submission_data['customer_name'],
                         expected_proc=submission_data['expected_proc'],
@@ -49,12 +50,57 @@ class DataSyncService:
                     )
                     submission.save()
                     submissions_added += 1
+                    
+                    # Enhanced logging for referrals
+                    if submission.business_type == 'Referral':
+                        print(f"  ✅ Referral saved: {submission.original_business_type} -> {submission.referral_to}")
+                        
             except Exception as e:
-                print(f" Error adding submission: {e}")
+                print(f"Error adding submission: {e}")
                 continue
         
         return submissions_added
+
     
+    def sync_recent_submissions(self, cutoff_date) -> int:
+        """Sync only submissions newer than cutoff date - ENHANCED"""
+        submissions = self.jotform_service.process_submissions()
+        submissions_added = 0
+        
+        for submission_data in submissions:
+            try:
+                # Skip if older than cutoff
+                if submission_data['submission_date'] < cutoff_date:
+                    continue
+                
+                existing = Submission.query.filter_by(jotform_id=submission_data['jotform_id']).first()
+                if not existing:
+                    advisor = Advisor.query.filter_by(
+                        full_name=submission_data['advisor_name']
+                    ).first()
+                    
+                    submission = Submission(
+                        advisor_name=submission_data['advisor_name'],
+                        advisor_id=advisor.id if advisor else None,
+                        business_type=submission_data['business_type'],
+                        original_business_type=submission_data['original_business_type'],  # NEW
+                        submission_date=submission_data['submission_date'],
+                        customer_name=submission_data['customer_name'],
+                        expected_proc=submission_data['expected_proc'],
+                        expected_fee=submission_data['expected_fee'],
+                        referral_to=submission_data['referral_to'],
+                        company=self.company,
+                        jotform_id=submission_data['jotform_id']
+                    )
+                    submission.save()
+                    submissions_added += 1
+                    print(f"Backup sync found missing submission: {submission_data['jotform_id']}")
+            except Exception as e:
+                print(f"Error adding submission in backup: {e}")
+                continue
+        
+        return submissions_added
+
     def sync_paid_cases(self) -> int:
         """Sync paid cases for the company - ENHANCED to update existing records"""
         paid_cases = self.jotform_service.process_paid_cases()

@@ -162,7 +162,7 @@ class MasterController(BaseController):
                 'Advisor', 'Appointments Booked', 'Appointments Completed', 
                 'Outbound Calls', 'Total Activity', 'Number of M Apps',
                 'Insurance Apps', 'C&C Apps', 'Insurance Referrals', 
-                'Other Referrals', 'Submitted (Plus Fees)', 'Conversion %',
+                'Submitted (Plus Fees)', 'Conversion %',
                 'Target Activity', '% of Target Activity', 
                 'Target Submitted', '% of Target Submitted'
             ]
@@ -200,7 +200,6 @@ class MasterController(BaseController):
                     insurance_apps = self._count_business_type(member, start_date, end_date, company, 'insurance')
                     cnc_apps = self._count_business_type(member, start_date, end_date, company, 'conveyancing')
                     insurance_referrals = self._count_referrals(member, start_date, end_date, company, 'insurance')
-                    other_referrals = self._count_referrals(member, start_date, end_date, company, 'other')
                     
                     submitted_amount = submission_metrics.get('expected_proc', 0)
                     fees_amount = submission_metrics.get('expected_fee', 0)
@@ -222,7 +221,6 @@ class MasterController(BaseController):
                         insurance_apps,
                         cnc_apps,
                         insurance_referrals,
-                        other_referrals,
                         submitted_plus_fees,
                         f"{conversion_rate:.1f}%",
                         target_activity,

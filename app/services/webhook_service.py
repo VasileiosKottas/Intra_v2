@@ -159,33 +159,28 @@ class WebhookService:
         
         # For now, default to windsor but you can enhance this
         return "windsor"
-    
     def _process_submission_data(self, answers: dict, company: str, submission_id: str) -> dict:
-        """Process submission data from webhook answers"""
+        """Enhanced webhook processing to capture all referrals"""
         try:
             config = config_manager.get_company_config(company)
             if not config:
                 return None
             
-            # Extract data using field mappings
+            # Extract data
             data = {}
             for data_key, question_id in self.submission_field_map.items():
                 if question_id in answers:
-                    answer_data = answers[question_id]
-                    if isinstance(answer_data, dict):
-                        answer_value = answer_data.get("answer", "")
-                    else:
-                        answer_value = str(answer_data)
-                    data[data_key] = answer_value
-                else:
-                    data[data_key] = ""
+                    answer_value = answers[question_id].get('answer', '')
+                    data[data_key] = answer_value if answer_value != 'No Answer' else ''
             
-            # Process and validate data
-            advisor_name = config.normalize_advisor_name(data.get("advisor_name", ""))
-            business_type = str(data.get("business_type", ""))
-            customer_name = str(data.get("customer_name", "") or "Unknown Customer")
+            advisor_name = config.normalize_advisor_name(data.get('advisor_name', ''))
+            business_type = str(data.get('business_type', ''))
+            customer_name = str(data.get('customer_name', '') or 'Unknown Customer')
             
-            # Handle financial fields
+            # Store original BEFORE any changes
+            original_business_type = business_type
+            
+            # Process values...
             try:
                 proc_raw = data.get("expected_proc", "")
                 expected_proc = float(str(proc_raw).replace('£', '').replace(',', '') or 0)
@@ -198,27 +193,30 @@ class WebhookService:
             except (ValueError, TypeError):
                 expected_fee = 0
             
-            # Handle date
             submission_date = self._parse_date(data.get("submission_date", ""))
             if not submission_date:
                 submission_date = datetime.now().date()
             
             # Handle referrals
             referral_to = None
-            if business_type and ('referral to' in business_type.lower() or business_type.lower().startswith('referral')):
-                if 'to' in business_type.lower():
-                    referral_to = business_type.lower().split('to')[-1].strip().title()
-                else:
-                    referral_to = business_type.replace('Referral', '').strip()
+            is_referral = 'referral' in business_type.lower()
+            
+            if is_referral:
+                if 'referral to' in business_type.lower():
+                    referral_to = business_type.lower().split('referral to')[-1].strip().title()
                 business_type = 'Referral'
             
-            # Validate
-            if not advisor_name or not (config.is_valid_business_type(business_type) or business_type == 'Referral'):
+            # Save if valid business type OR any referral
+            if not advisor_name:
+                return None
+                
+            if not (config.is_valid_business_type(business_type) or is_referral):
                 return None
             
             return {
                 'advisor_name': advisor_name,
                 'business_type': business_type,
+                'original_business_type': original_business_type,
                 'submission_date': submission_date,
                 'customer_name': customer_name,
                 'expected_proc': expected_proc,

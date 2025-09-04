@@ -17,6 +17,18 @@ def register_team_report_routes(app):
     except Exception as e:
         print(f"Error registering team report routes: {e}")
 
+def register_email_config_routes(app):
+    """Register email configuration routes"""
+    from app.controllers.email_config_controller import EmailConfigController
+    
+    try:
+        email_config_controller = EmailConfigController(app)
+        email_config_controller.register_routes()
+        print("✅ Email configuration routes registered successfully")
+    except Exception as e:
+        print(f"❌ Error registering email config routes: {e}")
+
+
 class SalesDashboardApp:
     """Main application class that orchestrates all components"""
     
@@ -36,7 +48,7 @@ class SalesDashboardApp:
             # db_service.create_sample_data()
             
     def start_background_services(self):
-        """Start hybrid sync services - webhooks + daily backup"""
+        """Start hybrid sync services - webhooks + daily backup + email scheduler"""
         import os
         
         # Check if we should disable all sync for development
@@ -44,6 +56,8 @@ class SalesDashboardApp:
         
         if disable_sync:
             print("All sync disabled for development. Use manual sync from master dashboard.")
+            # Still start email scheduler even if sync is disabled
+            self._start_email_scheduler()
             return
         
         # Initialize sync manager with app context
@@ -74,17 +88,65 @@ class SalesDashboardApp:
         print("  - Daily backup sync at 2:00 AM") 
         print("  - Weekly integrity checks")
         
+        # Start email scheduler
+        self._start_email_scheduler()
+
+    def _start_email_scheduler(self):
+        """Start the email report scheduler"""
+        try:
+            from app.services.scheduler_service import report_scheduler
+            report_scheduler.start_scheduler()
+            print("✅ Email report scheduler started successfully")
+        except Exception as e:
+            print(f"⚠️ Email scheduler not started: {e}")
+            print("   Check SMTP configuration in .env file")
+
+    def _stop_background_services(self):
+        """Stop all background services"""
+        # Stop sync manager
+        if self.sync_manager:
+            try:
+                # Add stop method call if your sync manager has one
+                # self.sync_manager.stop()
+                pass
+            except Exception as e:
+                print(f"Error stopping sync manager: {e}")
+        
+        # Stop email scheduler
+        try:
+            from app.services.scheduler_service import report_scheduler
+            report_scheduler.stop_scheduler()
+            print("Email scheduler stopped")
+        except Exception as e:
+            print(f"Error stopping email scheduler: {e}")
+
     def run(self, debug=True, host='0.0.0.0', port=5000):
         """Run the application"""
+        # Initialize database
         self.initialize_database()
+        
+        # Register all routes
+        with self.app.app_context():
+            register_team_report_routes(self.app)
+            register_email_config_routes(self.app)  # Add email routes
+        
+        # Start background services
         self.start_background_services()
         
-        print(" Sales Dashboard System starting...")
-        print(f" Dashboard available at http://{host}:{port}")
+        print("📊 Sales Dashboard System starting...")
+        print(f"🌐 Dashboard available at http://{host}:{port}")
+        print(f"📧 Email config available at http://{host}:{port}/master/email-config")
         
-        self.app.run(
-            debug=debug, 
-            host=host, 
-            port=port, 
-            use_reloader=False
-        )
+        try:
+            self.app.run(
+                debug=debug, 
+                host=host, 
+                port=port, 
+                use_reloader=False
+            )
+        except KeyboardInterrupt:
+            print("\n🛑 Shutting down gracefully...")
+        finally:
+            # Cleanup on shutdown
+            self._stop_background_services()
+            print("✅ Shutdown complete")

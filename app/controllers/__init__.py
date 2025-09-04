@@ -12,7 +12,7 @@ from .reports_controller import ReportsController
 from .calendly_controller import CalendlyController  # Add this import
 from .team_report_controller import TeamReportController
 from .enhanced_team_controller import EnhancedTeamReportController
-
+from .email_config_controller import EmailConfigController
 def register_controllers(app):
     """Register all controllers with the Flask app"""
     AuthController(app)
@@ -23,6 +23,7 @@ def register_controllers(app):
     ReportsController(app)
     EnhancedTeamReportController(app)  # Add this line
     CalendlyController(app)
+    EmailConfigController(app)
     print("All controllers registered successfully")
 
 
@@ -31,5 +32,6 @@ __all__ = [
     'AuthController', 'DashboardController', 
     'MasterController', 'APIController',
     'WebhookController', 'ReportsController',
-    'TeamReportController', 'CalendlyController'  # Add this
+    'TeamReportController', 'CalendlyController',
+    'EmailConfigController', 'EnhancedTeamReportController'  # Add this
 ]
