@@ -364,7 +364,6 @@ class CalendlyController(BaseController):
                 start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
             else:
                 start_date = datetime(end_date.year, 1, 1)  # Default to YTD
-            print(end_date, start_date)
             # Get user-specific analytics
             analytics_data = calendly_service.get_analytics_data_by_user(start_date, end_date)
             

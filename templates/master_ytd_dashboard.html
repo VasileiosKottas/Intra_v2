@@ -813,7 +813,7 @@
                 `;
             }
             
-            // ADD NEW: Appointments Booked Table with Q3 and Q4
+            // Appointments Booked Table with Q3 and Q4
             if (data.ytd_data.appointments_booked && data.ytd_data.appointments_booked.length > 0) {
                 html += `
                     <div class="ytd-section">
@@ -874,7 +874,7 @@
                 `;
             }
             
-            // ADD NEW: Outbound Calls Table with Q3 and Q4
+            // Outbound Calls Table with Q3 and Q4
             if (data.ytd_data.outbound_calls && data.ytd_data.outbound_calls.length > 0) {
                 html += `
                     <div class="ytd-section">
@@ -999,8 +999,7 @@
             container.innerHTML = html;
         }
 
-
-
+        // FIXED: Excel download function that works in iframe/hosted environments
         async function downloadExcel() {
             if (!currentTeam) {
                 alert('Please select a team first');
@@ -1030,13 +1029,8 @@
                 
                 console.log('Downloading Excel from:', downloadUrl);
                 
-                // Create a temporary link and trigger download
-                const link = document.createElement('a');
-                link.href = downloadUrl;
-                link.style.display = 'none';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                // FIXED: Use window.location.href instead of link.click() for iframe compatibility
+                window.location.href = downloadUrl;
                 
                 // Show success message
                 showSuccessMessage('Excel report download started successfully');
@@ -1052,6 +1046,7 @@
                 }, 2000);
             }
         }
+
         function showSuccessMessage(message) {
             // Create a temporary success notification
             const notification = document.createElement('div');
@@ -1078,6 +1073,7 @@
                 }
             }, 3000);
         }
+
         async function testCalendly() {
             const testBtn = event.target;
             const originalText = testBtn.textContent;

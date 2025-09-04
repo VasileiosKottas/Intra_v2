@@ -104,7 +104,6 @@ class EnhancedTeamReportController(BaseController):
             else:
                 start_date = datetime(end_date.year, 1, 1)
             
-            print(f"Getting YTD data for team {team.name} from {start_date} to {end_date}")
             
             # Generate monthly data
             monthly_data = []
@@ -115,12 +114,10 @@ class EnhancedTeamReportController(BaseController):
                 month_start = current_month
                 month_name = current_month.strftime('%B %Y')
                 
-                print(f"Processing month: {month_name}")
                 
                 month_members = []
                 
                 for member in team.members:
-                    print(f"Processing member: {member.full_name}")
                     
                     # Calculate submission metrics for current company only
                     submission_metrics = member.calculate_metrics_for_period(
@@ -222,10 +219,6 @@ class EnhancedTeamReportController(BaseController):
                 'total_apps': 0
             }
             
-            print(member.calculate_metrics_for_period(company, start_date, end_date, \
-                                                    self.config_manager.get_valid_business_types(company),
-                                                    self.config_manager.get_valid_paid_case_types(company)))
-            
             apps = member.calculate_metrics_for_period(company, start_date, end_date, \
                                                     self.config_manager.get_valid_business_types(company),
                                                     self.config_manager.get_valid_paid_case_types(company))
@@ -244,11 +237,7 @@ class EnhancedTeamReportController(BaseController):
                     # Everything else goes to mortgage_apps (Residential Mortgage, Product Transfer, etc.)
                     mortgage_apps += count
             
-            print(f"Applications breakdown for {member.full_name}:")
-            print(f"  Raw applications: {applications}")
-            print(f"  Mortgage apps (excluding Personal Insurance): {mortgage_apps}")
-            print(f"  Insurance apps (Personal Insurance only): {insurance_apps}")
-            
+
             # Company-specific business type filtering
             if company.lower() == 'windsor':
                 # Windsor: Mortgage and Insurance only, NO C&C
@@ -276,7 +265,6 @@ class EnhancedTeamReportController(BaseController):
                 )
             ).all()
             
-            print(f"Found {len(referral_submissions)} referral submissions BY {member.full_name}")
 
             # Get all advisors in the database to check against
             all_advisors = Advisor.query.all()
@@ -292,7 +280,6 @@ class EnhancedTeamReportController(BaseController):
                     email_name = advisor.email.split('@')[0].lower().strip()
                     advisor_names.add(email_name)
             
-            print(f"Known advisor names: {sorted(advisor_names)}")
 
             insurance_referrals = 0  # Referrals TO known advisors in database
             other_referrals = 0      # Survey referral, Conveyancing referral, referrals to external people
@@ -301,7 +288,6 @@ class EnhancedTeamReportController(BaseController):
                 referral_to = (referral.referral_to or '').lower().strip()
                 original_type = getattr(referral, 'original_business_type', '') or ''
                 
-                print(f"  Processing: '{original_type}' -> referral_to: '{referral_to}'")
                 
                 # Check if referral_to matches any known advisor
                 is_to_advisor = False
@@ -318,14 +304,10 @@ class EnhancedTeamReportController(BaseController):
                 
                 if is_to_advisor:
                     insurance_referrals += 1
-                    print(f"    -> Insurance Referral (to advisor: {referral_to})")
                 else:
                     other_referrals += 1
-                    print(f"    -> Other Referral (external or survey/conveyancing: {referral_to or original_type})")
             
-            print(f"  Insurance referrals (to known advisors): {insurance_referrals}")
-            print(f"  Other referrals (external/survey/conveyancing): {other_referrals}")
-            
+
             apps_data['insurance_referrals'] = insurance_referrals
             apps_data['other_referrals'] = other_referrals
             
@@ -560,7 +542,6 @@ class EnhancedTeamReportController(BaseController):
                 # YTD appointments and apps (for the full selected period)
                 ytd_appointments = self._get_completed_appointments_chunked(member, ytd_start, ytd_end)
                 ytd_apps = self._get_company_specific_apps(member, ytd_start, ytd_end, current_company)['total_apps']
-                print('ytd app:', ytd_appointments)
                 # Total Submitted data
                 # Total Submitted data - ADD Q3 and Q4
                 ytd_data['total_submitted'].append({
@@ -764,7 +745,6 @@ class EnhancedTeamReportController(BaseController):
                 
                 # FIXED: Get data directly instead of calling API endpoints
                 # Generate performance data directly
-                print(f"Getting YTD data for team {team.name} from {start_date} to {end_date}")
                 
                 # Generate monthly data (same logic as get_ytd_performance_report but return data directly)
                 monthly_data = []
@@ -775,7 +755,6 @@ class EnhancedTeamReportController(BaseController):
                     month_start = current_month
                     month_name = current_month.strftime('%B %Y')
                     
-                    print(f"Processing month: {month_name}")
                     
                     month_members = []
                     
@@ -1363,7 +1342,6 @@ class EnhancedTeamReportController(BaseController):
     def test_calendly_debug(self):
         """Debug Calendly integration using existing methods"""
         try:
-            print("🔍 Testing Calendly service...")
             
             # Test basic connection
             user_info = self.calendly_service.get_user_info()
@@ -1465,7 +1443,6 @@ class EnhancedTeamReportController(BaseController):
             events = calendly_service.get_events_for_user_email(member.email, start_date, end_date)
             
             if events:
-                print(f"   Found {len(events)} total events")
                 
                 # Count events by status and time
                 appointments_booked = 0
@@ -1488,16 +1465,13 @@ class EnhancedTeamReportController(BaseController):
                             if event_time <= now and status == 'active':
                                 appointments_completed += 1
                                 
-                            print(f"   Event: {event.get('name')} | {event_time.strftime('%Y-%m-%d')} | Status: {status} | Past: {event_time <= now}")
                             
                     except (ValueError, TypeError) as e:
                         print(f"   Error parsing event: {e}")
                         continue
                 
-                print(f"   ✅ {member.full_name}: {appointments_booked} booked, {appointments_completed} completed")
                 return appointments_booked, appointments_completed
             else:
-                print(f"   ⚠️ No events found for {member.full_name}")
                 return 0, 0
                 
         except Exception as e:
@@ -1516,9 +1490,7 @@ class EnhancedTeamReportController(BaseController):
             
             # Get test parameters
             team_id = request.args.get('team_id', 1, type=int)
-            
-            print(f"Testing Excel download for team {team_id}")
-            
+                        
             # Test the download functionality
             return self.download_ytd_excel(team_id)
             
