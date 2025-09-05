@@ -32,7 +32,8 @@ class EnhancedTeamReportController(BaseController):
         super().__init__(app)
         self.config_manager = ConfigurationManager()
         self.calendly_service = CalendlyService()
-    
+        from app.services.calendly_cache_service import CalendlyCacheService
+        self.calendly_cache_service = CalendlyCacheService()
     def register_routes(self):
         """Register enhanced team report routes"""
         print("Registering enhanced team report routes...")
