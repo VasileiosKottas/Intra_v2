@@ -1,6 +1,8 @@
+# app/models/__init__.py
 """
 Database models package
 Exports all models and database instance
+Updated to include Calendly cache models
 """
 
 from flask_sqlalchemy import SQLAlchemy
@@ -21,10 +23,12 @@ from .sync_log import SyncLog
 from .referral_recipient import ReferralRecipient
 from .referral_mapping import ReferralMapping
 
+# Import new Calendly cache models
+from .calendly_event import CalendlyEvent, CalendlySyncLog
 
 __all__ = [
     'db', 'init_db',
     'Advisor', 'AdvisorGoal', 'Team', 'AdvisorTeam', 
     'Submission', 'PaidCase', 'SyncLog', 'ReferralRecipient',
-    'ReferralMapping'
+    'ReferralMapping', 'CalendlyEvent', 'CalendlySyncLog'
 ]
