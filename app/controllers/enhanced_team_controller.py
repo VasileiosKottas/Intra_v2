@@ -1381,3 +1381,107 @@ class EnhancedTeamReportController(BaseController):
             import traceback
             traceback.print_exc()
             return jsonify({'error': f'Test failed: {str(e)}'}), 500
+
+    # FIXED: Add cache management methods
+    def get_cache_status(self):
+        """Get Calendly cache status for date range"""
+        try:
+            start_date_str = request.args.get('start_date')
+            end_date_str = request.args.get('end_date')
+            
+            if not start_date_str or not end_date_str:
+                # Default to current year
+                end_date = datetime.now()
+                start_date = datetime(end_date.year, 1, 1)
+            else:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+            
+            cache_status = self.calendly_cache_service.get_cache_status(start_date, end_date)
+            
+            return jsonify({
+                'success': True,
+                'date_range': {
+                    'start': start_date.isoformat(),
+                    'end': end_date.isoformat()
+                },
+                'cache_status': cache_status
+            })
+            
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    def trigger_cache_sync(self):
+        """Trigger cache sync for specific date range"""
+        try:
+            data = request.get_json()
+            start_date = datetime.strptime(data['start_date'], '%Y-%m-%d')
+            end_date = datetime.strptime(data['end_date'], '%Y-%m-%d')
+            user_email = data.get('user_email')
+            team_id = data.get('team_id')
+            
+            # Check if range is too large
+            days_diff = (end_date - start_date).days
+            if days_diff > 365:
+                return jsonify({
+                    'success': False, 
+                    'error': 'Date range too large. Please sync in smaller chunks (max 365 days).'
+                }), 400
+            
+            # Trigger sync using your existing cache service
+            result = self.calendly_cache_service._sync_events_for_range(
+                start_date, end_date, 
+                sync_type='manual',
+                user_email=user_email,
+                team_id=team_id
+            )
+            
+            return jsonify({
+                'success': True,
+                'sync_result': result
+            })
+            
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    def force_cache_refresh(self):
+        """Force refresh cache for specific date range"""
+        try:
+            data = request.get_json()
+            start_date = datetime.strptime(data['start_date'], '%Y-%m-%d')
+            end_date = datetime.strptime(data['end_date'], '%Y-%m-%d')
+            user_email = data.get('user_email')
+            
+            # Delete existing cache for this range and user
+            from app.models.calendly_event import CalendlyEvent
+            from sqlalchemy import and_
+            
+            query = CalendlyEvent.query.filter(
+                and_(
+                    CalendlyEvent.start_time >= start_date,
+                    CalendlyEvent.start_time <= end_date
+                )
+            )
+            
+            if user_email:
+                query = query.filter(CalendlyEvent.host_email == user_email)
+            
+            deleted_count = query.count()
+            query.delete(synchronize_session=False)
+            db.session.commit()
+            
+            # Re-sync the data
+            result = self.calendly_cache_service._sync_events_for_range(
+                start_date, end_date, 
+                sync_type='forced_refresh',
+                user_email=user_email
+            )
+            
+            return jsonify({
+                'success': True,
+                'deleted_events': deleted_count,
+                'refresh_result': result
+            })
+            
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
