@@ -373,7 +373,7 @@ class EnhancedTeamReportController(BaseController):
             print(f"   Date range: {start_date} to {end_date}")
             
             # Use get_events_for_user_email method
-            events = self.calendly_service.get_events_for_user_email(member.email, start_date, end_date)
+            events = self.calendly_cache_service.get_events_for_date_range(start_date, end_date, user_email=member.email)
             
             if events:
                 # Count events by status and time
